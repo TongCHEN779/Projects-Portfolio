@@ -22,6 +22,9 @@
     border-radius:10px;padding:10px;font:inherit;font-size:13px;line-height:1.5}
   .ctl{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
   .ctl input[type=range]{accent-color:var(--gold);flex:1;min-width:120px;max-width:260px}
+  .ctl #lam{flex:none}
+  .ctl label.ord{display:flex;align-items:center;gap:5px;cursor:pointer}
+  .ctl label.ord input{accent-color:var(--blue);width:15px;height:15px}
   .seg{display:flex;gap:6px;flex-wrap:wrap}
   .seg button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--btn-bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
   .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
@@ -43,11 +46,6 @@
   .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
   .explain p{color:var(--muted)}.explain b{color:var(--ink)}
   code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
-  .wordcloud{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 14px;
-    padding:18px 12px;min-height:96px}
-  .wordcloud .wc{font-weight:700;line-height:1.05;cursor:default;transition:transform .12s ease}
-  .wordcloud .wc:hover{transform:scale(1.09)}
-  .wordcloud .empty{color:var(--muted);font-size:13px;font-weight:400}
 </style>
 <link rel="stylesheet" href="../theme.css">
 <script src="../theme.js" defer></script>
@@ -55,13 +53,16 @@
 <body>
 <div class="wrap">
   <div class="top"><a href="../index.html">← Back to portfolio</a></div>
-  <div class="kicker">▚ EMBEDDINGS · CORESETS · k-CENTER</div>
+  <div class="kicker">▚ EMBEDDINGS · CORESETS · k-CENTER / MMR / FACILITY / LEXRANK</div>
   <h1>Summarise a pile of messages with k-center</h1>
   <p class="lede">Paste some text. We split it into units — individual <b>words</b> (for keywords) or
      <b>sentences</b> (split on commas, not periods) — embed each as a vector, then run
      <b>greedy k-center</b>: the farthest-first traversal that keeps picking the unit least like everything
      chosen so far. The result is a <b>coreset</b> — k maximally diverse keywords or sentences that summarise
-     the whole pile. Toggle the unit below.</p>
+     the whole pile. <b>k-center</b> chases the most <i>different</i> units, which on sequential text tends to
+     surface outliers — so you can switch the selector to <b>MMR</b> (relevance − redundancy), <b>facility-location</b>
+     (submodular coverage), or <b>LexRank</b> (graph centrality), and tick <b>reading order</b> to list the picks
+     in their original sequence. Toggle the unit and method below.</p>
 
   <div class="input">
     <textarea id="txt" spellcheck="false"></textarea>
@@ -76,24 +77,30 @@
       <input id="k" type="range" min="2" max="8" value="4">
       <span id="stat"></span>
     </div>
+    <div class="ctl">
+      <span>method:</span>
+      <div class="seg" id="methodsel">
+        <button data-x="kcenter" class="on">k-center</button>
+        <button data-x="mmr">MMR</button>
+        <button data-x="facility">Facility</button>
+        <button data-x="lexrank">LexRank</button>
+      </div>
+      <span id="lamWrap">λ <b id="lamV">0.70</b>
+        <input id="lam" type="range" min="0" max="100" value="70" style="width:110px;vertical-align:middle"></span>
+      <label class="ord"><input type="checkbox" id="ord" checked> reading order</label>
+    </div>
   </div>
 
   <div class="app">
     <div class="stage">
       <canvas id="plot" width="600" height="440"></canvas>
-      <div class="cap">Each dot is a unit — a <b>word</b> (keyword mode) or comma-split <b>sentence</b> — laid
-        out by similarity (MDS). Colour = nearest representative. Ringed dots ◎ are the chosen summary.</div>
+      <div class="cap">Word cloud of the selected core summary — character size = term frequency,
+        colour = which representative the term comes from.</div>
     </div>
     <div class="panel">
-      <h2>Coreset vs. synthetic</h2>
+      <h2>Core summary</h2>
       <div id="summary"></div>
     </div>
-  </div>
-
-  <div class="stage" style="margin:0 0 18px">
-    <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 4px">Word cloud — the selected core summary</h2>
-    <div class="cap">Key terms drawn from the chosen representatives. Size = TF-IDF weight, colour = which representative it came from.</div>
-    <div id="wordcloud" class="wordcloud"></div>
   </div>
 
   <div class="explain">
@@ -175,6 +182,49 @@ function kcenter(vecs,k){const N=vecs.length;
   const assign=vecs.map(v=>{let bi=centers[0],bd=1e9;centers.forEach(c=>{const d=dist(v,vecs[c]);if(d<bd){bd=d;bi=c;}});return bi;});
   return {centers,radius,assign};
 }
+/* ---- alternative, text-aware selectors ----
+   k-center chases the farthest (often outlier) units; these favour salience+coverage. */
+function meanVec(list){const acc={};list.forEach(v=>{for(const k in v)acc[k]=(acc[k]||0)+v[k];});
+  let n=0;for(const k in acc){acc[k]/=(list.length||1);n+=acc[k]*acc[k];}n=Math.sqrt(n)||1;for(const k in acc)acc[k]/=n;return acc;}
+function assignRadius(vecs,centers){
+  const assign=vecs.map(v=>{let bi=centers[0],bd=1e9;centers.forEach(c=>{const d=dist(v,vecs[c]);if(d<bd){bd=d;bi=c;}});return bi;});
+  let radius=0;vecs.forEach(v=>{let bd=1e9;centers.forEach(c=>{const d=dist(v,vecs[c]);if(d<bd)bd=d;});if(bd>radius)radius=bd;});
+  return {assign,radius};}
+/* MMR: λ·relevance(to whole-doc centroid) − (1−λ)·redundancy(to already chosen) */
+function mmr(vecs,k,lam){const N=vecs.length;const C=meanVec(vecs);const rel=vecs.map(v=>cos(v,C));
+  const centers=[],chosen=new Array(N).fill(false);
+  let f=0;for(let i=1;i<N;i++)if(rel[i]>rel[f])f=i;centers.push(f);chosen[f]=true;
+  while(centers.length<Math.min(k,N)){let best=-1,bs=-1e9;
+    for(let i=0;i<N;i++){if(chosen[i])continue;let red=0;for(const c of centers){const s=cos(vecs[i],vecs[c]);if(s>red)red=s;}
+      const sc=lam*rel[i]-(1-lam)*red;if(sc>bs){bs=sc;best=i;}}
+    if(best<0)break;centers.push(best);chosen[best]=true;}
+  return Object.assign({centers},assignRadius(vecs,centers));}
+/* Facility location (submodular): maximise Σ_i max_{s∈S} sim(i,s); greedy is (1−1/e) */
+function facility(vecs,k){const N=vecs.length;
+  const sim=[];for(let i=0;i<N;i++){sim[i]=new Float64Array(N);for(let j=0;j<N;j++)sim[i][j]=cos(vecs[i],vecs[j]);}
+  const centers=[],best=new Float64Array(N);
+  while(centers.length<Math.min(k,N)){let bc=-1,bg=-1e9;
+    for(let c=0;c<N;c++){if(centers.includes(c))continue;let gain=0;for(let i=0;i<N;i++){const d=sim[c][i]-best[i];if(d>0)gain+=d;}
+      if(gain>bg){bg=gain;bc=c;}}
+    if(bc<0)break;centers.push(bc);for(let i=0;i<N;i++)if(sim[bc][i]>best[i])best[i]=sim[bc][i];}
+  return Object.assign({centers},assignRadius(vecs,centers));}
+/* LexRank: PageRank centrality over the sentence-similarity graph, take top-k */
+function lexrank(vecs,k){const N=vecs.length;const sim=[];
+  for(let i=0;i<N;i++){sim[i]=new Float64Array(N);for(let j=0;j<N;j++)sim[i][j]=i===j?0:cos(vecs[i],vecs[j]);}
+  const row=sim.map(r=>{let s=0;for(let j=0;j<N;j++)s+=r[j];return s||1;});
+  let p=new Float64Array(N).fill(1/N);const damp=0.15;
+  for(let it=0;it<80;it++){const np=new Float64Array(N);
+    for(let j=0;j<N;j++){let acc=0;for(let i=0;i<N;i++)acc+=p[i]*sim[i][j]/row[i];np[j]=damp/N+(1-damp)*acc;}
+    p=np;}
+  const order=[...Array(N).keys()].sort((a,b)=>p[b]-p[a]);
+  const centers=order.slice(0,Math.min(k,N));
+  return Object.assign({centers},assignRadius(vecs,centers));}
+function selectCore(vecs,k){
+  if(selMethod==='mmr')return mmr(vecs,k,lambda);
+  if(selMethod==='facility')return facility(vecs,k);
+  if(selMethod==='lexrank')return lexrank(vecs,k);
+  return kcenter(vecs,k);
+}
 /* classical MDS -> 2D via power iteration */
 function mds(vecs){const N=vecs.length;const D2=vecs.map((a)=>vecs.map(b=>{const d=dist(a,b);return d*d;}));
   const rm=D2.map(r=>r.reduce((s,x)=>s+x,0)/N);const am=rm.reduce((s,x)=>s+x,0)/N;
@@ -190,6 +240,12 @@ const PAL=['#6ea8fe','#7ee0c0','#ffd479','#ff7b72','#a78bfa','#f472b6','#fb923c'
 const cv=document.getElementById('plot'),ctx=cv.getContext('2d');
 const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let DOCS=[],VECS=[],COORD=[],RES=null,colorOf={},segMode='word',IDF={};
+let selMethod='kcenter',lambda=0.70,readingOrder=true;
+/* display order: keep selection-order colours, but optionally number/list in original text order */
+function rebuildDisplay(){ if(!RES)return;
+  RES.display = readingOrder ? RES.centers.slice().sort((a,b)=>a-b) : RES.centers.slice();
+  RES.numOf={}; RES.display.forEach((c,i)=>RES.numOf[c]=i+1);
+}
 const UNIT={word:'words',sentence:'sentences',line:'lines'};
 
 // sentence = split by comma (not period); line = by newline.
@@ -221,31 +277,62 @@ function analyze(){
   else{DOCS=segment(text,segMode);if(DOCS.length>=2){const m=tfidf(DOCS);VECS=m.vecs;IDF=m.idf;}else VECS=[];}
   document.getElementById('kV').textContent=document.getElementById('k').value;
   if(DOCS.length<2){document.getElementById('summary').innerHTML='<div class="meta">Add more text.</div>';
-    ctx.clearRect(0,0,cv.width,cv.height);document.getElementById('stat').textContent='';
-    RES=null;renderCloud();return;}
+    document.getElementById('stat').textContent='';
+    RES=null;draw();return;}
   const k=Math.min(+document.getElementById('k').value, DOCS.length);
-  RES=kcenter(VECS,k);
-  COORD=mds(VECS);
+  RES=selectCore(VECS,k);
   colorOf={};RES.centers.forEach((c,i)=>colorOf[c]=PAL[i%PAL.length]);
-  draw();renderSummary();renderCloud();
-  document.getElementById('stat').textContent=DOCS.length+' '+UNIT[segMode]+' · coverage radius '+RES.radius.toFixed(2);
+  rebuildDisplay();
+  renderSummary();draw();
+  const mName={kcenter:'k-center',mmr:'MMR',facility:'facility-loc',lexrank:'LexRank'}[selMethod];
+  document.getElementById('stat').textContent=DOCS.length+' '+UNIT[segMode]+' · '+mName+' · coverage radius '+RES.radius.toFixed(2);
 }
+/* term frequencies for the cloud: count tokens across each representative's whole cluster,
+   coloured by the representative that contributes the term most. */
+function cloudTerms(){
+  const map={}; // term -> {count, byCol:{color:count}}
+  const add=(t,n,col)=>{ if(!t)return; if(!map[t])map[t]={count:0,byCol:{}}; map[t].count+=n; map[t].byCol[col]=(map[t].byCol[col]||0)+n; };
+  (RES.display||RES.centers).forEach(c=>{
+    const col=colorOf[c];
+    if(segMode==='word'){
+      const members=RES.assign.filter(a=>a===c).length;   // cluster size as the keyword's weight
+      add(DOCS[c],members,col);
+    }else{
+      RES.assign.forEach((a,idx)=>{ if(a===c) tok(DOCS[idx]).forEach(t=>add(t,1,col)); });
+    }
+  });
+  const dom=o=>Object.entries(o).sort((a,b)=>b[1]-a[1])[0][0];
+  return Object.entries(map).map(([term,o])=>({term,count:o.count,color:dom(o.byCol)}));
+}
+/* box-packed word cloud (Archimedean-spiral placement, vertical squash -> box shape) */
 function draw(){
-  ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle=THEME('--canvas-bg');ctx.fillRect(0,0,cv.width,cv.height);
-  let lo=[1e9,1e9],hi=[-1e9,-1e9];COORD.forEach(p=>{lo[0]=Math.min(lo[0],p[0]);lo[1]=Math.min(lo[1],p[1]);hi[0]=Math.max(hi[0],p[0]);hi[1]=Math.max(hi[1],p[1]);});
-  const pad=34;const sx=v=>pad+(v-lo[0])/((hi[0]-lo[0])||1)*(cv.width-2*pad);
-  const sy=v=>cv.height-pad-(v-lo[1])/((hi[1]-lo[1])||1)*(cv.height-2*pad);
-  // lines to assigned center
-  ctx.strokeStyle='rgba('+THEME('--speckle')+',0.10)';ctx.lineWidth=1;
-  COORD.forEach((p,i)=>{const c=RES.assign[i];ctx.beginPath();ctx.moveTo(sx(p[0]),sy(p[1]));ctx.lineTo(sx(COORD[c][0]),sy(COORD[c][1]));ctx.stroke();});
-  // points
-  COORD.forEach((p,i)=>{const col=colorOf[RES.assign[i]]||THEME('--muted');
-    ctx.beginPath();ctx.arc(sx(p[0]),sy(p[1]),4,0,7);ctx.fillStyle=col;ctx.globalAlpha=0.85;ctx.fill();ctx.globalAlpha=1;});
-  // centers ringed + number
-  RES.centers.forEach((c,i)=>{const x=sx(COORD[c][0]),y=sy(COORD[c][1]);
-    ctx.beginPath();ctx.arc(x,y,8,0,7);ctx.fillStyle=colorOf[c];ctx.fill();
-    ctx.lineWidth=2.5;ctx.strokeStyle=THEME('--canvas-bg');ctx.stroke();
-    ctx.fillStyle=THEME('--btn-ink');ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,x,y);});
+  const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=THEME('--canvas-bg');ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  if(!RES){ctx.fillStyle=THEME('--muted');ctx.font='14px sans-serif';ctx.fillText('Add more text to see the word cloud…',W/2,H/2);return;}
+  let terms=cloudTerms(); if(!terms.length)return;
+  terms.sort((a,b)=>b.count-a.count); terms=terms.slice(0,70);
+  const counts=terms.map(t=>t.count),mn=Math.min(...counts),mx=Math.max(...counts);
+  const fontFor=c=>{const t=mx>mn?(c-mn)/(mx-mn):0.5;return Math.round(15+Math.pow(t,0.8)*48);};
+  const placed=[];
+  const hit=(a,b)=>!(a.x+a.w<b.x||b.x+b.w<a.x||a.y+a.h<b.y||b.y+b.h<a.y);
+  for(const it of terms){
+    const fs=fontFor(it.count);
+    ctx.font='700 '+fs+'px -apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+    const w=ctx.measureText(it.term).width+10, h=fs*1.02;
+    const cx=W/2-w/2, cy=H/2-h/2;
+    let angle=Math.random()*6.28, radius=0, ok=false;
+    for(let s=0;s<2600;s++){
+      const x=cx+radius*Math.cos(angle), y=cy+radius*Math.sin(angle)*0.55;  // squash y -> wider box
+      if(x>=3&&y>=3&&x+w<=W-3&&y+h<=H-3){
+        const r={x,y,w,h};
+        if(!placed.some(p=>hit(p,r))){placed.push(r);
+          ctx.fillStyle=it.color;ctx.fillText(it.term,x+w/2,y+h/2);ok=true;break;}
+      }
+      angle+=0.45; radius+=0.85;
+    }
+    // if it didn't fit, just skip (keeps the box clean)
+  }
 }
 /* candidate phrase atoms: 2–4 word windows pulled from the cluster's member texts */
 function atoms(texts){const out=[];
@@ -270,39 +357,14 @@ function synth(members){
 }
 function renderSummary(){
   const box=document.getElementById('summary');const esc=s=>String(s).replace(/</g,'&lt;');
-  let cs='',sy='';
-  RES.centers.forEach((c,i)=>{
-    const members=[];RES.assign.forEach((a,idx)=>{if(a===c)members.push(idx);});
+  let cs='';
+  (RES.display||RES.centers).forEach((c,i)=>{
     const sw=`<span class="sw" style="background:${colorOf[c]}"></span>`;
     cs+=`<div class="sitem">${sw}<div class="t"><b>${i+1}.</b> ${esc(DOCS[c])}</div></div>`;
-    sy+=`<div class="sitem">${sw}<div class="t"><b>${i+1}.</b> ${esc(synth(members))}</div></div>`;
   });
-  box.innerHTML=`<div class="subhead">● Coreset — selected (real ${UNIT[segMode]})</div>${cs}
-    <div class="subhead">✦ Synthetic — generated (matching pursuit)</div>${sy}`;
-}
-/* word cloud built from the selected core representatives */
-function renderCloud(){
-  const box=document.getElementById('wordcloud'); if(!box)return;
-  const esc=s=>String(s).replace(/</g,'&lt;');
-  if(!RES||!RES.centers.length){box.innerHTML='<span class="empty">Add more text to see a word cloud.</span>';return;}
-  // gather weighted, cluster-coloured terms from each representative
-  const merged={};  // term -> {weight,color}
-  RES.centers.forEach(c=>{
-    const col=colorOf[c];
-    let terms;
-    if(segMode==='word'){ terms=[[DOCS[c],1]]; }              // the picked keyword itself
-    else { terms=topTerms(VECS[c],6).map(t=>[t,VECS[c][t]||0]); } // top TF-IDF terms of the picked sentence
-    terms.forEach(([t,w])=>{ if(!t)return;
-      if(!merged[t]||w>merged[t].weight) merged[t]={weight:w,color:merged[t]?merged[t].color:col};
-      merged[t].weight=Math.max(merged[t].weight,w);
-    });
-  });
-  const items=Object.entries(merged).map(([term,o])=>({term,weight:o.weight,color:o.color}));
-  if(!items.length){box.innerHTML='<span class="empty">No terms to show.</span>';return;}
-  const ws=items.map(i=>i.weight),mn=Math.min(...ws),mx=Math.max(...ws);
-  const size=w=>{const t=mx>mn?(w-mn)/(mx-mn):0.5;return (14+t*28).toFixed(1)+'px';};
-  for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];} // scatter
-  box.innerHTML=items.map(i=>`<span class="wc" style="font-size:${size(i.weight)};color:${i.color}">${esc(i.term)}</span>`).join('');
+  /* synthetic ("matching pursuit") section hidden for now — the synth()/atoms() helpers are kept
+     in case it's wanted back later. */
+  box.innerHTML=`<div class="subhead">● Coreset — selected (real ${UNIT[segMode]})</div>${cs}`;
 }
 document.getElementById('k').oninput=analyze;
 document.querySelectorAll('#segsel button').forEach(b=>b.onclick=()=>{
@@ -310,10 +372,21 @@ document.querySelectorAll('#segsel button').forEach(b=>b.onclick=()=>{
   segMode=b.dataset.m;analyze();});
 let deb;document.getElementById('txt').addEventListener('input',()=>{clearTimeout(deb);deb=setTimeout(analyze,350);});
 
+/* method selector + λ + reading order */
+function syncLamVis(){document.getElementById('lamWrap').style.display=selMethod==='mmr'?'':'none';}
+document.querySelectorAll('#methodsel button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#methodsel button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  selMethod=b.dataset.x;syncLamVis();analyze();});
+document.getElementById('lam').oninput=e=>{lambda=+e.target.value/100;
+  document.getElementById('lamV').textContent=lambda.toFixed(2);analyze();};
+document.getElementById('ord').onchange=e=>{readingOrder=e.target.checked;
+  if(RES){rebuildDisplay();renderSummary();draw();}};
+
 /* go */
+syncLamVis();
 document.getElementById('txt').value=SAMPLE;
 analyze();
-window.addEventListener('themechange',()=>{if(RES)draw();});
+window.addEventListener('themechange',draw);
 </script>
 </body>
 </html>
