@@ -8,12 +8,20 @@
   :root{
     --bg:#0f1117; --panel:#171a23; --panel2:#1d2130; --ink:#e7e9ee;
     --muted:#9aa3b2; --line:#2a2f3d; --accent:#6ea8fe; --accent2:#7ee0c0;
-    --warn:#ff7b72;
+    --warn:#ff7b72; --btn-ink:#0b1020; --glow:#1b2030; --thumb-bg:#10131c;
+    --proves-bg:rgba(110,168,254,.08);
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f7fb; --panel:#ffffff; --panel2:#eef1f7; --ink:#1b2030;
+    --muted:#5a6473; --line:#dfe3ec; --accent:#2f6fe0; --accent2:#0f9d77;
+    --warn:#d64545; --btn-ink:#ffffff; --glow:#e4eafa; --thumb-bg:#eef1f7;
+    --proves-bg:rgba(47,111,224,.08);
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       background:radial-gradient(1200px 600px at 70% -10%,#1b2030 0%,var(--bg) 55%);color:var(--ink);
-       line-height:1.6;-webkit-font-smoothing:antialiased}
+       background:radial-gradient(1200px 600px at 70% -10%,var(--glow) 0%,var(--bg) 55%);
+       background-attachment:fixed;color:var(--ink);
+       line-height:1.6;-webkit-font-smoothing:antialiased;transition:background-color .25s ease,color .25s ease}
   a{color:var(--accent);text-decoration:none}
   .wrap{max-width:980px;margin:0 auto;padding:0 22px}
   header.hero{padding:80px 0 40px}
@@ -24,7 +32,7 @@
   .sub{font-size:19px;color:var(--muted);max-width:680px}
   .cta{margin-top:26px;display:flex;gap:12px;flex-wrap:wrap}
   .btn{display:inline-block;padding:10px 18px;border-radius:10px;font-weight:600;font-size:15px}
-  .btn.primary{background:var(--accent);color:#0b1020}
+  .btn.primary{background:var(--accent);color:var(--btn-ink)}
   .btn.ghost{border:1px solid var(--line);color:var(--ink);background:var(--panel)}
   .sectitle{font-size:14px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
             margin:54px 0 18px;border-top:1px solid var(--line);padding-top:26px}
@@ -37,7 +45,7 @@
   .card .tag{font-size:12px;color:var(--accent2);font-weight:600;letter-spacing:.4px}
   .card h3{margin:8px 0 6px;font-size:21px}
   .card p{margin:0 0 16px;color:var(--muted);font-size:15px;flex:1}
-  .proves{font-size:13px;color:var(--ink);background:rgba(110,168,254,.08);border:1px solid var(--line);
+  .proves{font-size:13px;color:var(--ink);background:var(--proves-bg);border:1px solid var(--line);
           border-radius:8px;padding:8px 12px;margin-bottom:16px}
   .links{display:flex;gap:14px;font-size:14px;font-weight:600}
   .links a.code{color:var(--muted)}
@@ -45,9 +53,28 @@
   footer{margin:70px 0 50px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:24px}
   .note{font-size:13px;color:var(--muted);background:var(--panel);border:1px dashed var(--line);
         border-radius:10px;padding:12px 14px;margin-top:30px}
+  .theme-toggle{position:fixed;top:18px;right:18px;z-index:10;display:inline-flex;align-items:center;
+        gap:7px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+        color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;
+        transition:border-color .15s ease,transform .15s ease}
+  .theme-toggle:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .theme-toggle .icon{font-size:15px;line-height:1}
 </style>
+<script>
+  // Apply saved/system theme before first paint to avoid a flash.
+  (function(){
+    try{
+      var saved=localStorage.getItem('theme');
+      var theme=saved||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+      document.documentElement.setAttribute('data-theme',theme);
+    }catch(e){document.documentElement.setAttribute('data-theme','dark');}
+  })();
+</script>
 </head>
 <body>
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light/dark theme">
+  <span class="icon" id="themeIcon">☀️</span><span id="themeLabel">Light</span>
+</button>
 <div class="wrap">
 
   <header class="hero">
@@ -140,76 +167,125 @@
 </div>
 
 <script>
+// --- Theme helpers ---
+function cssVar(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+function isLight(){return document.documentElement.getAttribute('data-theme')==='light';}
+// Speckle/link overlay tint that works on both light & dark thumbnail backgrounds.
+function inkRGB(){return isLight()?'27,32,48':'255,255,255';}
+
 // Lightweight generated thumbnails so the hub looks alive without image assets.
+// mk() is idempotent: it clears the host and redraws, so it can run again on theme change.
 function mk(id, draw){
   const host=document.getElementById(id); if(!host) return;
+  host.innerHTML='';
   const c=document.createElement('canvas'); const W=host.clientWidth||560, H=120;
   c.width=W; c.height=H; c.style.width='100%'; c.style.height='100%'; host.appendChild(c);
   draw(c.getContext('2d'),W,H);
 }
-window.addEventListener('load',()=>{
+
+function renderThumbs(){
+  const BG=cssVar('--thumb-bg')||'#10131c';
+  const ACC=cssVar('--accent')||'#6ea8fe';
+  const ACC2=cssVar('--accent2')||'#7ee0c0';
+  const WARN=cssVar('--warn')||'#ff7b72';
+  const INK=cssVar('--ink')||'#e7e9ee';
+  const MUTED=cssVar('--muted')||'#9aa3b2';
+  const BTNINK=cssVar('--btn-ink')||'#0b1020';
+  const ink=inkRGB();
+
   // thumb1: two clusters + a perturbation arrow
   mk('thumb1',(g,W,H)=>{
-    g.fillStyle='#10131c'; g.fillRect(0,0,W,H);
+    g.fillStyle=BG; g.fillRect(0,0,W,H);
     const ry=H*0.30, rx=ry*0.72, lw=Math.max(5,H*0.10);
-    function zero(cx,speckle){g.strokeStyle='#e7e9ee';g.lineWidth=lw;g.beginPath();g.ellipse(cx,H*0.46,rx,ry,0,0,7);g.stroke();
+    function zero(cx,speckle){g.strokeStyle=INK;g.lineWidth=lw;g.beginPath();g.ellipse(cx,H*0.46,rx,ry,0,0,7);g.stroke();
       if(speckle)for(let i=0;i<46;i++){const x=cx+(Math.random()-0.5)*rx*2.6,y=H*0.46+(Math.random()-0.5)*ry*2.6;
-        g.fillStyle='rgba(255,255,255,'+(Math.random()*0.3)+')';g.fillRect(x,y,1.6,1.6);}}
+        g.fillStyle='rgba('+ink+','+(Math.random()*0.3)+')';g.fillRect(x,y,1.6,1.6);}}
     g.textAlign='center';g.textBaseline='middle';
     zero(W*0.24,false);
-    g.fillStyle='#9aa3b2';g.font='12px sans-serif';g.fillText('you see  0',W*0.24,H-9);
+    g.fillStyle=MUTED;g.font='12px sans-serif';g.fillText('you see  0',W*0.24,H-9);
     // + noise arrow
-    g.fillStyle='#9aa3b2';g.font='11px sans-serif';g.fillText('+ noise',W*0.5,H*0.34);
-    g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(W*0.44,H*0.46);g.lineTo(W*0.56,H*0.46);g.stroke();
-    g.beginPath();g.moveTo(W*0.56,H*0.46);g.lineTo(W*0.525,H*0.42);g.lineTo(W*0.525,H*0.50);g.fillStyle='#fff';g.fill();
+    g.fillStyle=MUTED;g.font='11px sans-serif';g.fillText('+ noise',W*0.5,H*0.34);
+    g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.moveTo(W*0.44,H*0.46);g.lineTo(W*0.56,H*0.46);g.stroke();
+    g.beginPath();g.moveTo(W*0.56,H*0.46);g.lineTo(W*0.525,H*0.42);g.lineTo(W*0.525,H*0.50);g.fillStyle=INK;g.fill();
     zero(W*0.76,true);
-    g.fillStyle='#ff7b72';g.font='bold 13px sans-serif';g.fillText('model: “6” ✗',W*0.76,H-9);
+    g.fillStyle=WARN;g.font='bold 13px sans-serif';g.fillText('model: “6” ✗',W*0.76,H-9);
   });
-  // thumb2: point cloud wrapped by a polynomial level set (matches the project page: shaded fill + highlighted boundary)
+  // thumb2: point cloud wrapped by a polynomial level set (shaded fill + highlighted boundary)
   mk('thumb2',(g,W,H)=>{
-    g.fillStyle='#10131c'; g.fillRect(0,0,W,H);
+    g.fillStyle=BG; g.fillRect(0,0,W,H);
     const cx=W*0.5, cy=H*0.52, Rox=W*0.27,Roy=H*0.40, Rix=W*0.105,Riy=H*0.155;
     // shaded sub-level set (annulus band) via even-odd fill
-    g.fillStyle='rgba(126,224,192,0.15)';g.beginPath();
-    g.ellipse(cx,cy,Rox,Roy,0,0,7);g.ellipse(cx,cy,Rix,Riy,0,0,7,true);g.fill('evenodd');
+    g.save();g.globalAlpha=0.15;g.fillStyle=ACC2;g.beginPath();
+    g.ellipse(cx,cy,Rox,Roy,0,0,7);g.ellipse(cx,cy,Rix,Riy,0,0,7,true);g.fill('evenodd');g.restore();
     // highlighted level-set boundary (outer + inner)
-    g.strokeStyle='#7ee0c0';g.lineWidth=2.2;
+    g.strokeStyle=ACC2;g.lineWidth=2.2;
     g.beginPath();g.ellipse(cx,cy,Rox,Roy,0,0,7);g.stroke();
     g.beginPath();g.ellipse(cx,cy,Rix,Riy,0,0,7);g.stroke();
     // points scattered in the band
-    g.fillStyle='#6ea8fe';for(let i=0;i<90;i++){const t=2*Math.PI*Math.random(),fr=0.4+Math.random()*0.45;
+    g.fillStyle=ACC;for(let i=0;i<90;i++){const t=2*Math.PI*Math.random(),fr=0.4+Math.random()*0.45;
       g.beginPath();g.arc(cx+Math.cos(t)*(Rix+(Rox-Rix)*fr),cy+Math.sin(t)*(Riy+(Roy-Riy)*fr),1.7,0,7);g.fill();}
   });
   // thumb4: scattered messages with k-center picks ringed
   mk('thumb4',(g,W,H)=>{
-    g.fillStyle='#10131c'; g.fillRect(0,0,W,H);
-    const cols=['#6ea8fe','#7ee0c0','#ffd479','#ff7b72'];
+    g.fillStyle=BG; g.fillRect(0,0,W,H);
+    const cols=[ACC,ACC2,'#ffd479',WARN];
     const centers=[[W*0.25,H*0.35],[W*0.72,H*0.30],[W*0.40,H*0.74],[W*0.78,H*0.70]];
     centers.forEach((c,ci)=>{for(let i=0;i<12;i++){const x=c[0]+(Math.random()-0.5)*W*0.22,y=c[1]+(Math.random()-0.5)*H*0.32;
-      g.strokeStyle='rgba(255,255,255,0.06)';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(c[0],c[1]);g.stroke();
+      g.strokeStyle='rgba('+ink+',0.10)';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(c[0],c[1]);g.stroke();
       g.fillStyle=cols[ci];g.globalAlpha=0.8;g.beginPath();g.arc(x,y,2.4,0,7);g.fill();g.globalAlpha=1;}});
     centers.forEach((c,ci)=>{g.beginPath();g.arc(c[0],c[1],7,0,7);g.fillStyle=cols[ci];g.fill();
-      g.lineWidth=2.4;g.strokeStyle='#fff';g.stroke();
-      g.fillStyle='#0b1020';g.font='bold 10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(ci+1,c[0],c[1]);});
+      g.lineWidth=2.4;g.strokeStyle=BG;g.stroke();
+      g.fillStyle=BTNINK;g.font='bold 10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(ci+1,c[0],c[1]);});
   });
-  // thumb3: contour + path
+  // thumb3: climbing bound toward true minimum
   mk('thumb3',(g,W,H)=>{
-    g.fillStyle='#10131c'; g.fillRect(0,0,W,H);
+    g.fillStyle=BG; g.fillRect(0,0,W,H);
     const topY=H*0.20, baseY=H*0.80, x0=W*0.10, x1=W*0.90, n=4, sw=(x1-x0)/n;
     // target line = true minimum
-    g.strokeStyle='#fff';g.setLineDash([5,4]);g.lineWidth=1.3;
+    g.strokeStyle=INK;g.setLineDash([5,4]);g.lineWidth=1.3;
     g.beginPath();g.moveTo(x0,topY);g.lineTo(x1,topY);g.stroke();g.setLineDash([]);
-    g.fillStyle='#9aa3b2';g.font='10px sans-serif';g.textAlign='left';g.textBaseline='alphabetic';
+    g.fillStyle=MUTED;g.font='10px sans-serif';g.textAlign='left';g.textBaseline='alphabetic';
     g.fillText('true min',x0,topY-5);
     // climbing steps (bound rises with order, gap shrinks)
-    const fr=[0.42,0.68,0.86,0.97]; g.strokeStyle='#7ee0c0';g.lineWidth=2.6;g.lineJoin='round';
+    const fr=[0.42,0.68,0.86,0.97]; g.strokeStyle=ACC2;g.lineWidth=2.6;g.lineJoin='round';
     let prevY=baseY;
     for(let i=0;i<n;i++){const x=x0+i*sw, y=baseY-(baseY-topY)*fr[i];
       g.beginPath();g.moveTo(x,prevY);g.lineTo(x,y);g.lineTo(x+sw,y);g.stroke();prevY=y;
-      g.fillStyle='#7ee0c0';g.font='10px sans-serif';g.textAlign='center';g.fillText('r'+(i+1),x+sw/2,baseY+13);}
+      g.fillStyle=ACC2;g.font='10px sans-serif';g.textAlign='center';g.fillText('r'+(i+1),x+sw/2,baseY+13);}
     g.fillStyle='#ffd479';g.beginPath();g.arc(x1,prevY,3.6,0,7);g.fill();
   });
+}
+
+// --- Theme toggle wiring ---
+function syncToggleUI(){
+  const light=isLight();
+  const icon=document.getElementById('themeIcon');
+  const label=document.getElementById('themeLabel');
+  // Show the action the button will perform (clicking switches to the other theme).
+  if(icon) icon.textContent=light?'🌙':'☀️';
+  if(label) label.textContent=light?'Dark':'Light';
+}
+function setTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  try{localStorage.setItem('theme',theme);}catch(e){}
+  syncToggleUI();
+  renderThumbs();
+}
+
+window.addEventListener('load',()=>{
+  syncToggleUI();
+  renderThumbs();
+  const btn=document.getElementById('themeToggle');
+  if(btn) btn.addEventListener('click',()=>setTheme(isLight()?'dark':'light'));
+  // Follow the OS theme if the user hasn't made an explicit choice.
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',e=>{
+      try{if(localStorage.getItem('theme'))return;}catch(_){}
+      setTheme(e.matches?'light':'dark');
+    });
+  }
 });
+window.addEventListener('resize',()=>renderThumbs());
 </script>
 </body>
 </html>
