@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeMap — one map for every Copenhagen listing</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+  .top{padding:24px 0 6px;font-size:14px}
+  h1{font-size:28px;margin:6px 0 6px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:780px;font-size:15px}
+  .story{max-width:780px;color:#cdd3de;margin:14px 0 6px;font-size:15px}
+  .story b{color:var(--ink)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px}
+  .kpi .n{font-size:22px;font-weight:700}.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .layout{display:grid;grid-template-columns:1fr;gap:16px;margin:6px 0}
+  @media(min-width:900px){.layout{grid-template-columns:270px minmax(0,1fr) 290px}}
+  .controls,.listcol{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .controls h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 8px}
+  .controls h2:first-child{margin-top:0}
+  label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:8px}
+  input[type=range]{width:100%;accent-color:var(--blue)}
+  select,.txt{width:100%;background:#10131c;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13px;margin-top:4px}
+  .sug{margin-top:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:none;background:#10131c}
+  .sug.show{display:block}
+  .sug .item{padding:7px 9px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .sug .item:last-child{border-bottom:none}
+  .sug .item:hover{background:#1d2130;color:var(--blue)}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{font-size:11.5px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);cursor:pointer;color:var(--muted);user-select:none}
+  .chip.on{color:#0b1020;font-weight:600;background:var(--blue);border-color:var(--blue)}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin-top:10px;cursor:pointer}
+  .toggle input{accent-color:var(--green);width:16px;height:16px}
+  #map{height:560px;border-radius:16px;border:1px solid var(--line);z-index:1}
+  .listcol{max-height:560px;overflow:auto}
+  .listcol h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+  .card{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;cursor:pointer;background:#10131c}
+  .card:hover{border-color:var(--blue)}
+  .card .p{font-weight:700;font-size:15px}
+  .card .meta{font-size:12px;color:var(--muted)}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;display:inline-block}
+  .b-under{background:rgba(126,224,192,.16);color:var(--green)}
+  .b-fair{background:rgba(110,168,254,.16);color:var(--blue)}
+  .b-over{background:rgba(255,123,114,.16);color:var(--red)}
+  .src{font-size:10.5px;color:var(--muted);margin-top:4px}
+  .src b{color:var(--gold)}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px}
+  .method{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin:18px 0 50px;color:var(--muted);font-size:14px}
+  .method b{color:var(--ink)}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#171a23;color:#e7e9ee;border:1px solid #2a2f3d}
+  .leaflet-popup-content{font-size:13px}
+  .leaflet-popup-content a{color:#6ea8fe}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <h1>HomeMap — one map for every Copenhagen listing</h1>
+  <p class="lede">A prototype housing aggregator. I'm flat-hunting in Denmark and got tired of the same flat
+     appearing on Boligsiden, Boliga <i>and</i> three agents' own sites — each map only showing its own stock.
+     So I built the thing I wanted: every listing on one map, duplicates merged, and a "fair price" flag the
+     portals don't give you.</p>
+
+  <p class="story"><b>The real problem isn't a map — it's the data.</b> Each agent has its own platform;
+     aggregators only carry part of the market; the same home shows up several times with slightly different
+     prices. The interesting engineering is <b>unifying many sources into one schema and detecting duplicates
+     across platforms.</b> That's what this does.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" id="kRaw">—</div><div class="l">Raw listings ingested</div></div>
+    <div class="kpi"><div class="n" id="kHomes">—</div><div class="l">Unique homes (deduped)</div></div>
+    <div class="kpi"><div class="n" id="kDup">—</div><div class="l">Cross-platform duplicates merged</div></div>
+    <div class="kpi"><div class="n" id="kShown">—</div><div class="l">Matching your filters</div></div>
+  </div>
+
+  <div class="layout">
+    <div class="controls">
+      <h2>Sources</h2>
+      <div class="chips" id="srcChips"></div>
+      <label class="toggle"><input type="checkbox" id="mergeT" checked> Merge cross-platform duplicates</label>
+
+      <h2>Filters</h2>
+      <label>Max price <span id="vPrice">any</span></label>
+      <input id="fPrice" type="range" min="6000" max="35000" step="500" value="35000">
+      <label>Min size <span id="vSize">0 m²</span></label>
+      <input id="fSize" type="range" min="0" max="130" value="0">
+      <label>Min rooms <span id="vRooms">1</span></label>
+      <input id="fRooms" type="range" min="1" max="5" value="1">
+      <label>Type</label>
+      <select id="fType"><option value="all">All</option><option value="Apartment">Apartment</option><option value="House">House</option></select>
+
+      <h2>Colour markers by</h2>
+      <select id="colorBy">
+        <option value="value">Fair price (under / over)</option>
+        <option value="source">Source platform</option>
+        <option value="commute">Commute to workplace</option>
+      </select>
+
+      <h2>Commute to (your workplace)</h2>
+      <input id="workSearch" class="txt" type="text" autocomplete="off" placeholder="Type a real Danish address…">
+      <div class="sug" id="workSug"></div>
+      <div class="chips" id="workPresets" style="margin-top:6px"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">📍 Geocoded live via <b>DAWA</b> (Danish official open address data) — free, no API key.</div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="listcol">
+      <h2 id="listTitle">Listings</h2>
+      <div id="detail" class="detail" style="display:none"></div>
+      <div id="cards"></div>
+    </div>
+  </div>
+
+  <div class="method">
+    <b>How it works (and what's real).</b> The architecture is the point: source adapters → one canonical
+    schema → a <b>deduplication step</b> that merges listings within ~25 m, same size and price within 3%
+    (the same flat across platforms) → a <b>"fair price" model</b> (median kr/m² per neighbourhood) that flags
+    each home as under- or over-priced. <b>What's real and free here:</b> map tiles from
+    <b>OpenStreetMap</b>, and live workplace geocoding from <b>DAWA</b> (Denmark's official open address API —
+    no key, no cost) — type any Danish address and it's resolved to real coordinates. The <i>listings</i>
+    themselves are synthetic but realistic, because full-market aggregation raises ToS/legal questions; the
+    honest production path is official feeds + partner data (see the architecture note). Commute is
+    straight-line distance for now — swap in OpenRouteService for real travel time.
+  </div>
+</div>
+
+<style>
+  .detail{background:#10131c;border:1px solid var(--blue);border-radius:12px;padding:14px;margin-bottom:12px}
+  .dhead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .daddr{font-weight:700;font-size:15px}
+  .dsub{font-size:12px;color:var(--muted);margin-top:2px}
+  .dclose{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;line-height:1}
+  .dprice{font-size:21px;font-weight:700;margin:10px 0 8px}
+  .dprice span{font-size:13px;color:var(--muted);font-weight:400}
+  .drow{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:5px 0;border-top:1px solid var(--line)}
+  .drow span{color:var(--muted)}
+  .dsrc{font-size:12px;color:var(--muted);margin-top:10px}
+  .dlinks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .srcbtn{font-size:12px;font-weight:600;color:var(--blue);border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:var(--panel);cursor:pointer}
+  .srcbtn:hover{border-color:var(--blue)}
+  .card.sel{border-color:var(--blue);background:#161b27}
+</style>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ================= synthetic but realistic data ================= */
+const HOODS=[
+  {name:'Indre By', c:[55.6800,12.5800], ppsm:205},
+  {name:'Frederiksberg', c:[55.6770,12.5340], ppsm:185},
+  {name:'Østerbro', c:[55.7060,12.5760], ppsm:178},
+  {name:'Vesterbro', c:[55.6680,12.5500], ppsm:172},
+  {name:'Nørrebro', c:[55.6960,12.5520], ppsm:158},
+  {name:'Amager', c:[55.6600,12.5950], ppsm:148},
+  {name:'Valby', c:[55.6620,12.5100], ppsm:138},
+  {name:'Nordvest', c:[55.7060,12.5350], ppsm:128},
+];
+const AGENTS=['Home','EDC','Nybolig','Danbolig','Estate'];
+const AGGREG=['Boligsiden','Boliga'];
+const SOURCES=[...AGENTS,...AGGREG];
+const WORK={city:[55.6759,12.5655],dtu:[55.7861,12.5234],novo:[55.7560,12.4490],orestad:[55.6300,12.5780]};
+const STREETS=['Nørrebrogade','Vesterbrogade','Østerbrogade','Amagerbrogade','Falkoner Allé','Strandvejen','Jagtvej','Gammel Kongevej','Istedgade','Frederikssundsvej','Borups Allé','Englandsvej'];
+
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+let RAW=[], uid=1, homeId=1;
+HOODS.forEach(h=>{
+  const n=11+Math.floor(Math.random()*4);
+  for(let i=0;i<n;i++){
+    const size=Math.max(24,Math.round(38+randn()*20+(Math.random()<0.15?35:0)));
+    const rooms=Math.min(5,Math.max(1,Math.round(size/28+randn()*0.4)));
+    const type=size>95&&Math.random()<0.5?'House':'Apartment';
+    const ppsm=h.ppsm*(1+randn()*0.10);
+    const basePrice=Math.round((ppsm*size+randn()*800)/100)*100;
+    const lat=h.c[0]+randn()*0.006, lng=h.c[1]+randn()*0.010;
+    const addr=STREETS[Math.floor(Math.random()*STREETS.length)]+' '+(1+Math.floor(Math.random()*180));
+    const hid=homeId++;
+    const dom=Math.max(1,Math.round(20+randn()*30));
+    // primary listing = a random agent
+    const primary=AGENTS[Math.floor(Math.random()*AGENTS.length)];
+    RAW.push({id:uid++,hid,addr,lat,lng,hood:h.name,size,rooms,type,price:Math.max(5000,basePrice),
+              ppsm:Math.max(5000,basePrice)/size,src:primary,dom});
+    // cross-platform duplicates on aggregators / another agent
+    const nDup=Math.random()<0.45?(Math.random()<0.4?2:1):0;
+    const pool=[...AGGREG, AGENTS[(AGENTS.indexOf(primary)+2)%AGENTS.length]];
+    for(let k=0;k<nDup;k++){
+      const p2=pool[k%pool.length];
+      const price2=Math.round(basePrice*(1+randn()*0.02)/100)*100; // slightly different price
+      RAW.push({id:uid++,hid,addr,lat:lat+randn()*0.00005,lng:lng+randn()*0.00005,hood:h.name,size,rooms,type,
+                price:Math.max(5000,price2),ppsm:Math.max(5000,price2)/size,src:p2,dom:dom+Math.round(randn()*3)});
+    }
+  }
+});
+
+/* ================= dedup: merge across platforms ================= */
+function haversine(a,b){const R=6371000,toR=x=>x*Math.PI/180;
+  const dLat=toR(b[0]-a[0]),dLng=toR(b[1]-a[1]);
+  const s=Math.sin(dLat/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));}
+function dedup(raw){
+  const used=new Array(raw.length).fill(false), homes=[];
+  for(let i=0;i<raw.length;i++){
+    if(used[i])continue; const group=[raw[i]]; used[i]=true;
+    for(let j=i+1;j<raw.length;j++){
+      if(used[j])continue; const a=raw[i],b=raw[j];
+      if(a.size===b.size && a.rooms===b.rooms &&
+         haversine([a.lat,a.lng],[b.lat,b.lng])<25 &&
+         Math.abs(a.price-b.price)/a.price<0.03){ group.push(b); used[j]=true; }
+    }
+    const prices=group.map(g=>g.price), lo=Math.min(...prices);
+    homes.push({...group[0], price:lo, ppsm:lo/group[0].size,
+      sources:[...new Set(group.map(g=>g.src))], nListings:group.length});
+  }
+  return homes;
+}
+
+/* ================= fair-price model: median kr/m² per hood ================= */
+function median(a){const s=[...a].sort((x,y)=>x-y);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+let HOOD_PPSM={};
+function buildFairModel(homes){
+  HOODS.forEach(h=>{const v=homes.filter(x=>x.hood===h.name).map(x=>x.ppsm);HOOD_PPSM[h.name]=v.length?median(v):h.ppsm;});
+}
+function valueRatio(home){const exp=HOOD_PPSM[home.hood]*home.size;return home.price/exp;}
+function valueBadge(r){return r<0.92?['under','b-under','▼ under-priced']:r>1.08?['over','b-over','▲ over-priced']:['fair','b-fair','● fair price'];}
+
+/* ================= state + map ================= */
+const activeSrc=new Set(SOURCES);
+let state={maxPrice:35000,minSize:0,minRooms:1,type:'all',merge:true,colorBy:'value',
+           workCoord:[55.6759,12.5655], workName:'City centre (Rådhuspladsen)'};
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+
+const map=L.map('map',{scrollWheelZoom:true}).setView([55.682,12.56],12.4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+let markers=[];
+
+/* work marker (persists across renders) */
+let workMarker=null;
+function setWork(coord,name){
+  state.workCoord=coord; state.workName=name;
+  if(workMarker)map.removeLayer(workMarker);
+  workMarker=L.circleMarker(coord,{radius:10,color:'#0b1020',weight:2,fillColor:'#ffd479',fillOpacity:1})
+    .addTo(map).bindTooltip('🏢 Work: '+name,{permanent:false});
+  render();
+}
+
+const SRC_COL={'Home':'#6ea8fe','EDC':'#7ee0c0','Nybolig':'#ffd479','Danbolig':'#ff7b72','Estate':'#a78bfa','Boligsiden':'#f472b6','Boliga':'#9aa3b2'};
+const SRC_HOME={'Home':'https://home.dk','EDC':'https://www.edc.dk','Nybolig':'https://www.nybolig.dk','Danbolig':'https://www.danbolig.dk','Estate':'https://www.estate.dk','Boligsiden':'https://www.boligsiden.dk','Boliga':'https://www.boliga.dk'};
+function commuteColor(d){ // meters -> green(near) to red(far)
+  const t=Math.min(1,d/12000); const r=Math.round(126+t*129),g=Math.round(224-t*150),b=Math.round(192-t*120);
+  return `rgb(${r},${g},${b})`;}
+function markerColor(home){
+  if(state.colorBy==='source')return SRC_COL[home.sources?home.sources[0]:home.src]||'#9aa3b2';
+  if(state.colorBy==='commute')return commuteColor(haversine([home.lat,home.lng],state.workCoord));
+  const [,cls]=valueBadge(valueRatio(home));return cls==='b-under'?'#7ee0c0':cls==='b-over'?'#ff7b72':'#6ea8fe';
+}
+
+/* ================= chips & controls ================= */
+const srcBox=document.getElementById('srcChips');
+SOURCES.forEach(s=>{const c=document.createElement('div');c.className='chip on';c.textContent=s;
+  c.onclick=()=>{if(activeSrc.has(s)){activeSrc.delete(s);c.classList.remove('on');}else{activeSrc.add(s);c.classList.add('on');}render();};
+  srcBox.appendChild(c);});
+document.getElementById('mergeT').onchange=e=>{state.merge=e.target.checked;render();};
+document.getElementById('fPrice').oninput=e=>{state.maxPrice=+e.target.value;
+  document.getElementById('vPrice').textContent=state.maxPrice>=35000?'any':fmt(state.maxPrice)+' kr';render();};
+document.getElementById('fSize').oninput=e=>{state.minSize=+e.target.value;document.getElementById('vSize').textContent=state.minSize+' m²';render();};
+document.getElementById('fRooms').oninput=e=>{state.minRooms=+e.target.value;document.getElementById('vRooms').textContent=state.minRooms;render();};
+document.getElementById('fType').onchange=e=>{state.type=e.target.value;render();};
+document.getElementById('colorBy').onchange=e=>{state.colorBy=e.target.value;render();};
+/* ----- workplace: DAWA live geocoding (free, official open data, no key) ----- */
+const PRESETS=[['City centre',[55.6759,12.5655]],['DTU Lyngby',[55.7861,12.5234]],['Novo (Bagsværd)',[55.7560,12.4490]],['Ørestad',[55.6300,12.5780]]];
+const presetBox=document.getElementById('workPresets');
+PRESETS.forEach(([name,co])=>{const c=document.createElement('div');c.className='chip';c.textContent=name;
+  c.onclick=()=>{document.getElementById('workSearch').value='';document.getElementById('workSug').classList.remove('show');setWork(co,name);};
+  presetBox.appendChild(c);});
+const wInput=document.getElementById('workSearch'),wSug=document.getElementById('workSug');
+let wTimer=null;
+wInput.addEventListener('input',()=>{clearTimeout(wTimer);const q=wInput.value.trim();
+  if(q.length<3){wSug.classList.remove('show');return;}
+  wTimer=setTimeout(()=>dawa(q),250);});
+async function dawa(q){
+  try{
+    const url='https://api.dataforsyningen.dk/adgangsadresser?q='+encodeURIComponent(q)+'&struktur=mini&per_side=6&srid=4326';
+    const r=await fetch(url); if(!r.ok)throw 0; const arr=await r.json();
+    wSug.innerHTML='';
+    if(!arr.length){wSug.innerHTML='<div class="item" style="color:var(--muted)">No match</div>';wSug.classList.add('show');return;}
+    arr.forEach(a=>{const label=`${a.vejnavn} ${a.husnr}, ${a.postnr} ${a.postnrnavn}`;
+      const it=document.createElement('div');it.className='item';it.textContent=label;
+      it.onclick=()=>{wInput.value=label;wSug.classList.remove('show');setWork([a.y,a.x],label);map.setView([a.y,a.x],13);};
+      wSug.appendChild(it);});
+    wSug.classList.add('show');
+  }catch(e){wSug.innerHTML='<div class="item" style="color:var(--red)">DAWA unreachable — check connection</div>';wSug.classList.add('show');}
+}
+document.addEventListener('click',e=>{if(!wSug.contains(e.target)&&e.target!==wInput)wSug.classList.remove('show');});
+
+function updateLegend(){
+  const L=document.getElementById('legend');
+  if(state.colorBy==='source')L.innerHTML=SOURCES.map(s=>`<span><span class="dot" style="background:${SRC_COL[s]}"></span>${s}</span>`).join('');
+  else if(state.colorBy==='commute')L.innerHTML='<span><span class="dot" style="background:#7ee0c0"></span>near</span><span><span class="dot" style="background:#ff7b72"></span>far</span>';
+  else L.innerHTML='<span><span class="dot" style="background:#7ee0c0"></span>under</span><span><span class="dot" style="background:#6ea8fe"></span>fair</span><span><span class="dot" style="background:#ff7b72"></span>over</span>';
+}
+
+/* ================= selection + detail panel ================= */
+let selMarker=null, selCard=null;
+function deselect(){
+  const d=document.getElementById('detail'); if(d)d.style.display='none';
+  if(selMarker){try{selMarker.setStyle({weight:1,color:'#0c0f16'});selMarker.setRadius(7);}catch(e){}}
+  if(selCard)selCard.classList.remove('sel');
+  selMarker=null;selCard=null;
+}
+function selectListing(h,m,card){
+  if(selMarker&&selMarker!==m){try{selMarker.setStyle({weight:1,color:'#0c0f16'});selMarker.setRadius(7);}catch(e){}}
+  if(selCard&&selCard!==card)selCard.classList.remove('sel');
+  selMarker=m;selCard=card;
+  if(m){m.setStyle({weight:2.6,color:'#ffffff'});m.setRadius(10);if(m.bringToFront)m.bringToFront();}
+  if(card)card.classList.add('sel');
+  map.panTo([h.lat,h.lng]);
+  renderDetail(h);
+}
+function renderDetail(h){
+  const d=document.getElementById('detail');
+  const [,bcls,btxt]=valueBadge(valueRatio(h));
+  const predicted=HOOD_PPSM[h.hood]*h.size, ratio=valueRatio(h), pct=Math.round(Math.abs(ratio-1)*100);
+  const commute=(haversine([h.lat,h.lng],state.workCoord)/1000).toFixed(1);
+  const srcs=h.sources?h.sources:[h.src];
+  const valCol=bcls==='b-under'?'var(--green)':bcls==='b-over'?'var(--red)':'var(--blue)';
+  const links=srcs.map(s=>`<a class="srcbtn" href="${SRC_HOME[s]||'#'}" target="_blank" rel="noopener noreferrer">${s} ↗</a>`).join('');
+  d.innerHTML=
+    `<div class="dhead"><div><div class="daddr">${h.addr}</div>
+       <div class="dsub">${h.hood} · ${h.type} · ${h.rooms} rooms · ${h.size} m²</div></div>
+       <button class="dclose" id="dclose">✕</button></div>
+     <div class="dprice">${fmt(h.price)} kr<span>/mo</span> &nbsp;<span class="badge ${bcls}">${btxt}</span></div>
+     <div class="drow"><span>Price per m²</span><b>${Math.round(h.ppsm)} kr</b></div>
+     <div class="drow"><span>Fair-price model</span><b style="color:${valCol}">${pct}% ${ratio<1?'below':'above'} ${h.hood} median</b></div>
+     <div class="drow"><span>Model's expected rent</span><b>${fmt(predicted)} kr/mo</b></div>
+     <div class="drow"><span>Distance to ${state.workName.split('(')[0].trim()}</span><b>~${commute} km</b></div>
+     <div class="dsrc">${srcs.length>1?`Same home found on <b>${srcs.length} platforms</b> — merged into one:`:'Source platform:'}
+       <div class="dlinks">${links}</div></div>`;
+  d.style.display='block';
+  document.getElementById('dclose').onclick=deselect;
+  d.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ================= render ================= */
+function render(){
+  const homesAll=dedup(RAW);
+  buildFairModel(homesAll);
+  document.getElementById('kRaw').textContent=fmt(RAW.length);
+  document.getElementById('kHomes').textContent=fmt(homesAll.length);
+  document.getElementById('kDup').textContent=fmt(RAW.length-homesAll.length);
+
+  // when merge off, show raw listings; else deduped homes
+  let items = state.merge ? homesAll : RAW.map(r=>({...r,sources:[r.src],nListings:1}));
+  items = items.filter(h=>
+    h.price<=state.maxPrice && h.size>=state.minSize && h.rooms>=state.minRooms &&
+    (state.type==='all'||h.type===state.type) &&
+    (h.sources?h.sources.some(s=>activeSrc.has(s)):activeSrc.has(h.src)));
+  document.getElementById('kShown').textContent=fmt(items.length);
+  document.getElementById('listTitle').textContent=items.length+' '+(state.merge?'homes':'listings');
+
+  deselect();
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  const cards=document.getElementById('cards');cards.innerHTML='';
+  items.sort((a,b)=>valueRatio(a)-valueRatio(b));
+  items.forEach(h=>{
+    const col=markerColor(h);
+    const m=L.circleMarker([h.lat,h.lng],{radius:7,color:'#0c0f16',weight:1,fillColor:col,fillOpacity:0.9}).addTo(map);
+    const [, bcls, btxt]=valueBadge(valueRatio(h));
+    const srcLine=(h.sources&&h.sources.length>1)?`<b>On ${h.sources.length} platforms:</b> ${h.sources.join(', ')}`:`Source: ${h.sources?h.sources[0]:h.src}`;
+    markers.push(m);
+    // list card
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`<div class="p">${fmt(h.price)} kr/mo <span class="badge ${bcls}">${btxt}</span></div>
+      <div class="meta">${h.addr} · ${h.hood} · ${h.size} m² · ${h.rooms} rm · ${Math.round(h.ppsm)} kr/m²</div>
+      <div class="src">${srcLine}${h.nListings>1?` <b>(merged ${h.nListings})</b>`:''}</div>`;
+    m.on('click',()=>selectListing(h,m,card));
+    card.onclick=()=>selectListing(h,m,card);
+    cards.appendChild(card);
+  });
+  updateLegend();
+}
+setWork(state.workCoord, state.workName);
+</script>
+</body>
+</html>

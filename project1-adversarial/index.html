@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fooling MNIST — Standard vs Robust models</title>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--red:#ff7b72;--green:#7ee0c0;--gold:#ffd479}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  h1{font-size:28px;margin:6px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:740px}
+  .bar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:18px 0}
+  .bar .st{font-size:14px;color:var(--muted)}
+  .prog{height:8px;background:#222838;border-radius:6px;overflow:hidden;margin-top:8px;display:none}
+  .prog>i{display:block;height:100%;background:var(--blue);width:0}
+  .acc{display:flex;gap:18px;margin-top:10px;font-size:13px;flex-wrap:wrap}
+  .acc b{color:var(--ink)}
+  button{font:inherit;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);
+         border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--blue)} button:disabled{opacity:.45;cursor:default}
+  button.act{background:var(--gold);color:#0b1020;border:none}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:14px 0}
+  @media(min-width:840px){.app{grid-template-columns:minmax(0,1fr) 300px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .trip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center}
+  .trip .lab{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .trip canvas{width:100%;height:auto;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line);background:#000}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+  label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:12px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .seg{display:flex;gap:6px;margin-top:6px}
+  .seg button{flex:1}
+  .seg button.on{background:var(--blue);color:#0b1020;border-color:var(--blue)}
+  .row2{display:flex;gap:8px;margin-top:12px}
+  .row2 button{flex:1}
+  .models{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .mcard{background:#10131c;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .mcard h3{margin:0 0 8px;font-size:14px}
+  .mcard h3 small{color:var(--muted);font-weight:400}
+  .pr{font-size:12px;margin:6px 0 2px;display:flex;justify-content:space-between}
+  .pbar{height:7px;background:#222838;border-radius:6px;overflow:hidden}.pbar>i{display:block;height:100%}
+  .flip{font-weight:700;font-size:13px;margin-top:8px;text-align:center;padding:6px;border-radius:7px}
+  .flip.ok{background:rgba(126,224,192,.12);color:var(--green)} .flip.bad{background:rgba(255,123,114,.14);color:var(--red)}
+  .extra{display:grid;grid-template-columns:1fr;gap:18px;margin:0 0 10px}
+  @media(min-width:840px){.extra{grid-template-columns:1fr 1fr}}
+  .draw{display:flex;gap:10px;align-items:center;margin-top:10px}
+  #pad{width:112px;height:112px;background:#000;border-radius:8px;border:1px solid var(--line);touch-action:none;cursor:crosshair}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  .cap{font-size:12px;color:var(--muted)}
+  canvas.chart{width:100%;height:auto;background:#0c0f16;border-radius:8px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="cover">
+    <div class="cover-text">
+      <div class="kicker">▚ ADVERSARIAL EXAMPLES</div>
+      <h1>This is a <span class="z">0</span>.<br>The neural net is <em>positive</em> it's a 6.</h1>
+      <p class="lede">Sprinkle on a little noise — far too faint for your eyes to catch — and a confident
+         classifier flips its answer completely. That's an <b>adversarial example</b>. Below you can build one
+         yourself, live in your browser, then watch an <b>adversarially-trained</b> model refuse to take the
+         bait. Everything runs client-side; no server.</p>
+    </div>
+    <div class="cover-viz">
+      <figure><canvas id="cvOrig" width="28" height="28"></canvas><figcaption>you see <b>0</b></figcaption></figure>
+      <div class="cvarrow">+&nbsp;noise<br>→</div>
+      <figure><canvas id="cvAdv" width="28" height="28"></canvas><figcaption class="wrong">model: <b>“6”</b> · 98%</figcaption></figure>
+    </div>
+  </div>
+  <style>
+    .cover{display:grid;grid-template-columns:1fr;gap:20px;align-items:center;margin:4px 0 12px}
+    @media(min-width:760px){.cover{grid-template-columns:1fr auto}}
+    .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin-bottom:8px}
+    .cover h1{font-size:30px;line-height:1.18;margin:0 0 12px;letter-spacing:-0.4px}
+    .cover h1 .z{display:inline-block;color:#fff;background:#000;border:1px solid var(--line);border-radius:8px;
+      padding:0 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .cover h1 em{color:var(--red);font-style:italic}
+    .cover-viz{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);
+      border-radius:16px;padding:16px}
+    .cover-viz figure{margin:0;text-align:center}
+    .cover-viz canvas{width:92px;height:92px;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line);background:#000;display:block}
+    .cover-viz figcaption{font-size:12px;color:var(--muted);margin-top:8px}
+    .cover-viz figcaption.wrong{color:var(--red);font-weight:600}
+    .cvarrow{font-size:12px;color:var(--muted);text-align:center;line-height:1.35}
+  </style>
+  <script>
+  (function(){
+    function zero(noise){const c=document.createElement('canvas');c.width=28;c.height=28;const g=c.getContext('2d');
+      const im=g.createImageData(28,28);
+      for(let y=0;y<28;y++)for(let x=0;x<28;x++){
+        const nx=(x-13.5)/8.2, ny=(y-13.5)/11.2, r=Math.sqrt(nx*nx+ny*ny);
+        let v=Math.min(1,Math.max(0,1-Math.abs(r-1)/0.42)*1.15);
+        if(noise) v=Math.max(0,Math.min(1, v+(Math.random()-0.5)*noise));
+        const k=(y*28+x)*4, p=Math.round(v*255); im.data[k]=im.data[k+1]=im.data[k+2]=p; im.data[k+3]=255;}
+      g.putImageData(im,0,0); return c;}
+    function blit(id,noise){const dst=document.getElementById(id); if(!dst)return; const g=dst.getContext('2d');
+      g.imageSmoothingEnabled=false; g.drawImage(zero(noise),0,0);}
+    blit('cvOrig',0); blit('cvAdv',0.22);
+  })();
+  </script>
+
+  <div class="bar">
+    <div class="st" id="status">Loading real MNIST…</div>
+    <div class="prog" id="prog"><i id="progBar"></i></div>
+    <div class="acc" id="accLine"></div>
+    <div style="margin-top:10px"><button class="act" id="trainBtn" disabled>Train both models</button>
+      <span class="cap" id="trainNote" style="margin-left:8px"></span></div>
+  </div>
+
+  <div class="app">
+    <div class="stage">
+      <div class="trip">
+        <div><div class="lab">Original digit</div><canvas id="cOrig" width="28" height="28"></canvas></div>
+        <div><div class="lab">Perturbation (×8)</div><canvas id="cPert" width="28" height="28"></canvas></div>
+        <div><div class="lab">Adversarial digit</div><canvas id="cAdv" width="28" height="28"></canvas></div>
+      </div>
+      <div class="models" id="models">
+        <div class="mcard">
+          <h3>Standard model <small id="accS">—</small></h3>
+          <div id="predS"></div>
+          <div class="flip ok" id="flipS">—</div>
+        </div>
+        <div class="mcard">
+          <h3>Robust model <small id="accR">—</small></h3>
+          <div id="predR"></div>
+          <div class="flip ok" id="flipR">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Attack</h2>
+      <div class="seg">
+        <button id="mFGSM" class="on">FGSM</button>
+        <button id="mPGD">PGD</button>
+      </div>
+      <label style="margin-top:10px">Norm (perturbation budget)</label>
+      <div class="seg" style="margin-top:4px">
+        <button id="nLinf" class="on">L∞</button>
+        <button id="nL2">L2</button>
+        <button id="nL1">L1</button>
+      </div>
+      <label>Strength ε <span id="epsV">—</span></label>
+      <input id="eps" type="range" min="0" max="100" value="25">
+      <label id="stepsRow" style="display:none">PGD steps <span id="stepsV">10</span></label>
+      <input id="steps" type="range" min="1" max="20" value="10" style="display:none">
+      <div class="row2">
+        <button id="newDigit" disabled>🔀 New digit</button>
+        <button id="reattack" disabled>⚔ Attack</button>
+      </div>
+      <h2 style="margin-top:16px">…or draw your own</h2>
+      <div class="draw">
+        <canvas id="pad" width="280" height="280"></canvas>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button id="usePad" disabled>Use drawing</button>
+          <button id="clearPad">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="extra">
+    <div class="stage">
+      <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 4px">Robustness curve</h2>
+      <div class="cap">Accuracy vs attack strength ε (FGSM, on a test batch). The robust model degrades far more gracefully.</div>
+      <canvas id="curve" class="chart" width="520" height="260" style="margin-top:8px"></canvas>
+      <button id="curveBtn" disabled style="margin-top:8px">Compute robustness curve</button>
+    </div>
+    <div class="stage">
+      <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 4px">Decision regions (2D slice)</h2>
+      <div class="cap">2D slice of input space: adversarial direction × random direction. Colours = predicted class. ● = your digit, ✕ = adversarial. <b>Drag ε</b> and watch ✕ slide — it crosses into a wrong colour on the standard model, but the robust model's region holds it in place.</div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="text-align:center;flex:1"><div class="cap">Standard</div><canvas id="sliceS" class="chart" width="160" height="160"></canvas></div>
+        <div style="text-align:center;flex:1"><div class="cap">Robust</div><canvas id="sliceR" class="chart" width="160" height="160"></canvas></div>
+      </div>
+      <button id="sliceBtn" disabled style="margin-top:8px">Compute decision slice</button>
+    </div>
+  </div>
+
+  <div class="explain">
+    <p><b>What's under the hood.</b> Each model is a small convolutional net (two 3×3 conv layers, stride 2 → a dense head) with hand-written
+       backprop — no ML library. <b>FGSM</b> takes one step along <code>sign(∇ₓ loss)</code>; <b>PGD</b> iterates
+       that, projecting back into an ε-sized L∞ ball each step — a stronger attack that finds different
+       adversarial examples. <b>Robust training</b> learns on a <i>mix</i> of clean and adversarially-perturbed
+       digits (FGSM, ε=0.12) each step, so its boundary sits farther from real digits without sacrificing too
+       much clean accuracy — the classic robustness–accuracy balance.</p>
+    <p style="margin-top:10px"><b>The honest caveat:</b> this is a small CNN on MNIST for speed and to keep it
+       100% client-side. The real flagship version would ship a deeper CNN and a RobustBench model on CIFAR-10 — but
+       the phenomenon you see here (imperceptible perturbation, confident wrong answer, robust model resisting)
+       is exactly the same one that matters in production. Certifying that resistance rigorously leads straight
+       to the SDP relaxations in Project 3.</p>
+  </div>
+</div>
+
+<script>
+/* ============ simple CNN (pure JS, gradient-checked) ============
+   conv(1→6,3×3,s2,p1)→ReLU → conv(6→12,3×3,s2,p1)→ReLU → fc(12·7·7→10) → softmax
+   Convolutions give translation tolerance an MLP can't (off-centre digits). */
+const D=784,K=10;
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function convCfg(inC,outC,inH,inW,k,s,p){const outH=Math.floor((inH+2*p-k)/s)+1,outW=Math.floor((inW+2*p-k)/s)+1;
+  return {inC,outC,inH,inW,k,s,p,outH,outW,W:new Float32Array(outC*inC*k*k),b:new Float32Array(outC)};}
+function newModel(){
+  const c1=convCfg(1,6,28,28,3,2,1), c2=convCfg(6,12,c1.outH,c1.outW,3,2,1);
+  const inN=c2.outC*c2.outH*c2.outW;
+  const fc={inN,outN:K,W:new Float32Array(K*inN),b:new Float32Array(K)};
+  const s1=Math.sqrt(2/9),s2=Math.sqrt(2/(6*9)),s3=Math.sqrt(2/inN);
+  for(let i=0;i<c1.W.length;i++)c1.W[i]=randn()*s1;
+  for(let i=0;i<c2.W.length;i++)c2.W[i]=randn()*s2;
+  for(let i=0;i<fc.W.length;i++)fc.W[i]=randn()*s3;
+  return {c1,c2,fc};
+}
+function convForward(L,inp){const{inC,outC,inH,inW,k,s,p,outH,outW,W,b}=L;const z=new Float32Array(outC*outH*outW);
+  for(let oc=0;oc<outC;oc++)for(let oy=0;oy<outH;oy++)for(let ox=0;ox<outW;ox++){let sum=b[oc];
+    for(let ic=0;ic<inC;ic++){const wB=(oc*inC+ic)*k*k,iB=ic*inH*inW;
+      for(let ky=0;ky<k;ky++){const iy=oy*s-p+ky;if(iy<0||iy>=inH)continue;
+        for(let kx=0;kx<k;kx++){const ix=ox*s-p+kx;if(ix<0||ix>=inW)continue;
+          sum+=W[wB+ky*k+kx]*inp[iB+iy*inW+ix];}}}
+    z[(oc*outH+oy)*outW+ox]=sum;}
+  const a=new Float32Array(z.length);for(let i=0;i<z.length;i++)a[i]=z[i]>0?z[i]:0;return{z,a};}
+function convBackward(L,inp,z,dA){const{inC,outC,inH,inW,k,s,p,outH,outW,W}=L;
+  const dW=new Float32Array(W.length),db=new Float32Array(outC),dInp=new Float32Array(inp.length);
+  for(let oc=0;oc<outC;oc++)for(let oy=0;oy<outH;oy++)for(let ox=0;ox<outW;ox++){const oi=(oc*outH+oy)*outW+ox;
+    let g=dA[oi];if(z[oi]<=0)g=0;if(g===0)continue;db[oc]+=g;
+    for(let ic=0;ic<inC;ic++){const wB=(oc*inC+ic)*k*k,iB=ic*inH*inW;
+      for(let ky=0;ky<k;ky++){const iy=oy*s-p+ky;if(iy<0||iy>=inH)continue;
+        for(let kx=0;kx<k;kx++){const ix=ox*s-p+kx;if(ix<0||ix>=inW)continue;
+          const wi=wB+ky*k+kx,ii=iB+iy*inW+ix;dW[wi]+=g*inp[ii];dInp[ii]+=W[wi]*g;}}}}
+  return{dW,db,dInp};}
+function forward(m,x){
+  const f1=convForward(m.c1,x);const f2=convForward(m.c2,f1.a);
+  const{W,b,inN,outN}=m.fc;const lo=new Float32Array(outN);
+  for(let o=0;o<outN;o++){let s=b[o];const base=o*inN;for(let i=0;i<inN;i++)s+=W[base+i]*f2.a[i];lo[o]=s;}
+  let mx=-1e9;for(let o=0;o<outN;o++)if(lo[o]>mx)mx=lo[o];
+  const p=new Float32Array(outN);let Z=0;for(let o=0;o<outN;o++){p[o]=Math.exp(lo[o]-mx);Z+=p[o];}
+  for(let o=0;o<outN;o++)p[o]/=Z;
+  return {f1,f2,p};
+}
+function predict(m,x){const p=forward(m,x).p;let a=0;for(let k=1;k<K;k++)if(p[k]>p[a])a=k;return {cls:a,conf:p[a],p};}
+function gradAll(m,x,y){
+  const f=forward(m,x);const dlo=Float32Array.from(f.p);dlo[y]-=1;
+  const{W,inN,outN}=m.fc;const dWfc=new Float32Array(W.length),dbfc=new Float32Array(outN),dA2=new Float32Array(inN);
+  for(let o=0;o<outN;o++){const base=o*inN,g=dlo[o];dbfc[o]+=g;for(let i=0;i<inN;i++){dWfc[base+i]+=g*f.f2.a[i];dA2[i]+=W[base+i]*g;}}
+  const b2=convBackward(m.c2,f.f1.a,f.f2.z,dA2);
+  const b1=convBackward(m.c1,x,f.f1.z,b2.dInp);
+  return {dWfc,dbfc,dW2:b2.dW,db2:b2.db,dW1:b1.dW,db1:b1.db,dInp:b1.dInp};
+}
+function gradInput(m,x,y){return gradAll(m,x,y).dInp;}
+function clip01(x){if(x<0)return 0;if(x>1)return 1;return x;}
+function fgsm(m,x,y,eps){const g=gradInput(m,x,y);const a=new Float32Array(D);
+  for(let d=0;d<D;d++)a[d]=clip01(x[d]+eps*Math.sign(g[d]));return a;}
+function pgd(m,x,y,eps,steps){const a=Float32Array.from(x);const alpha=2.5*eps/steps;
+  for(let s=0;s<steps;s++){const g=gradInput(m,a,y);
+    for(let d=0;d<D;d++){let v=a[d]+alpha*Math.sign(g[d]);
+      const lo=x[d]-eps,hi=x[d]+eps;if(v<lo)v=lo;if(v>hi)v=hi;a[d]=clip01(v);}}
+  return a;}
+/* one SGD step over a batch; advEps>0 => mix in FGSM adversarial examples */
+function trainBatch(m,batch,lr,advEps){
+  const aW1=new Float32Array(m.c1.W.length),ab1=new Float32Array(m.c1.b.length),
+        aW2=new Float32Array(m.c2.W.length),ab2=new Float32Array(m.c2.b.length),
+        aWf=new Float32Array(m.fc.W.length),abf=new Float32Array(m.fc.b.length);
+  for(const ex of batch){
+    let x=ex.x;const y=ex.y;
+    if(advEps>0 && Math.random()<0.5)x=fgsm(m,x,y,advEps);  // mix: ~50% clean + 50% adversarial
+    const g=gradAll(m,x,y);
+    for(let i=0;i<aW1.length;i++)aW1[i]+=g.dW1[i];
+    for(let i=0;i<ab1.length;i++)ab1[i]+=g.db1[i];
+    for(let i=0;i<aW2.length;i++)aW2[i]+=g.dW2[i];
+    for(let i=0;i<ab2.length;i++)ab2[i]+=g.db2[i];
+    for(let i=0;i<aWf.length;i++)aWf[i]+=g.dWfc[i];
+    for(let i=0;i<abf.length;i++)abf[i]+=g.dbfc[i];
+  }
+  const s=lr/batch.length;
+  for(let i=0;i<aW1.length;i++)m.c1.W[i]-=s*aW1[i];
+  for(let i=0;i<ab1.length;i++)m.c1.b[i]-=s*ab1[i];
+  for(let i=0;i<aW2.length;i++)m.c2.W[i]-=s*aW2[i];
+  for(let i=0;i<ab2.length;i++)m.c2.b[i]-=s*ab2[i];
+  for(let i=0;i<aWf.length;i++)m.fc.W[i]-=s*aWf[i];
+  for(let i=0;i<abf.length;i++)m.fc.b[i]-=s*abf[i];
+}
+function accuracy(m,set,attack){let c=0;for(const ex of set){let x=ex.x;if(attack)x=attack(m,ex.x,ex.y);
+  if(predict(m,x).cls===ex.y)c++;}return c/set.length;}
+
+/* ===================== data: real MNIST sprite ===================== */
+const IMG_URL='https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
+const LBL_URL='https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
+const NUM=12000;
+let TRAIN=[],TEST=[],dataReady=false;
+function setStatus(t){document.getElementById('status').textContent=t;}
+async function loadMNIST(){
+  try{
+    const img=new Image();img.crossOrigin='anonymous';
+    const imgP=new Promise((res,rej)=>{img.onload=res;img.onerror=rej;});img.src=IMG_URL;
+    const lblP=fetch(LBL_URL).then(r=>r.arrayBuffer());
+    await imgP;const lblBuf=await lblP;const labels=new Uint8Array(lblBuf);
+    const cv=document.createElement('canvas');cv.width=784;cv.height=NUM;
+    const g=cv.getContext('2d');g.drawImage(img,0,0);
+    const px=g.getImageData(0,0,784,NUM).data;
+    const all=[];
+    for(let i=0;i<NUM;i++){
+      const x=new Float32Array(784);for(let d=0;d<784;d++)x[d]=px[(i*784+d)*4]/255;
+      let y=0;for(let k=0;k<10;k++)if(labels[i*10+k]===1){y=k;break;}
+      all.push({x,y});
+    }
+    // shuffle before splitting so train/test are both representative regardless of sprite order
+    for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+    TRAIN=all.slice(0,6000);TEST=all.slice(6000,7500);
+    dataReady=true;
+    setStatus('Real MNIST loaded ('+NUM+' digits). Click "Train both models".');
+    document.getElementById('trainBtn').disabled=false;
+    pickDigit();
+  }catch(e){
+    setStatus('⚠ Could not load MNIST (needs internet / CORS). You can still draw a digit, but training is unavailable here.');
+  }
+}
+
+/* ===================== training (chunked, keeps UI alive) ===================== */
+let modelS=null,modelR=null,trained=false;
+const sleep=()=>new Promise(r=>setTimeout(r,0));
+async function trainAll(){
+  document.getElementById('trainBtn').disabled=true;
+  document.getElementById('prog').style.display='block';
+  modelS=newModel();modelR=newModel();
+  const EPOCHS=8,BS=20,advEps=0.12;
+  const totalSteps=EPOCHS*Math.ceil(TRAIN.length/BS)*2;let done=0;
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+  async function run(model,advE,name){
+    for(let ep=0;ep<EPOCHS;ep++){
+      shuffle(TRAIN);
+      const lr=Math.max(0.03, 0.15*Math.pow(0.9,ep));  // decay schedule (tuned for the CNN)
+      for(let i=0;i<TRAIN.length;i+=BS){
+        trainBatch(model,TRAIN.slice(i,i+BS),lr,advE);
+        done++;
+        if((i/BS)%4===0){document.getElementById('progBar').style.width=(100*done/totalSteps)+'%';
+          setStatus(name+' — epoch '+(ep+1)+'/'+EPOCHS+'  (CNN, trains entirely in your browser, ~2 min)');await sleep();}
+      }
+    }
+  }
+  await run(modelS,0,'Training standard model');
+  await run(modelR,advEps,'Training robust model (PGD/FGSM adv. training)');
+  document.getElementById('prog').style.display='none';
+  trained=true;
+  const sub=TEST.slice(0,300);
+  const aS=accuracy(modelS,TEST,null),aR=accuracy(modelR,TEST,null);
+  const rS=accuracy(modelS,sub,(m,x,y)=>fgsm(m,x,y,0.2)),rR=accuracy(modelR,sub,(m,x,y)=>fgsm(m,x,y,0.2));
+  document.getElementById('accS').textContent='· clean '+(aS*100).toFixed(1)+'% · attacked '+(rS*100).toFixed(1)+'%';
+  document.getElementById('accR').textContent='· clean '+(aR*100).toFixed(1)+'% · attacked '+(rR*100).toFixed(1)+'%';
+  updateEpsLabel();
+  setStatus('Trained. Standard: clean '+(aS*100).toFixed(1)+'% / attacked '+(rS*100).toFixed(0)+'%.  Robust: clean '+(aR*100).toFixed(1)+'% / attacked '+(rR*100).toFixed(0)+'%  (FGSM ε=0.2).');
+  ['newDigit','reattack','usePad','curveBtn','sliceBtn'].forEach(id=>document.getElementById(id).disabled=false);
+  attack();
+}
+
+/* ===================== UI / drawing ===================== */
+let curX=null,curY=null;
+let slice={ready:false,R:0.42};
+function draw28(canvas,arr,mode){
+  const g=canvas.getContext('2d');const im=g.createImageData(28,28);
+  for(let i=0;i<784;i++){let r,gg,b;
+    if(mode==='pert'){const v=Math.max(-1,Math.min(1,arr[i]*8));
+      const lvl=Math.round(128+v*127);r=gg=b=lvl;}  // grey: mid-grey = no change, lighter/darker = +/-
+    else{const v=Math.round(arr[i]*255);r=gg=b=v;}
+    im.data[i*4]=r;im.data[i*4+1]=gg;im.data[i*4+2]=b;im.data[i*4+3]=255;}
+  g.putImageData(im,0,0);
+}
+function predBars(el,p,trueCls){
+  let h='';for(let k=0;k<10;k++){const w=(p[k]*100).toFixed(0);
+    h+=`<div class="pr"><span>${k}${k===trueCls?' ✓':''}</span><span>${w}%</span></div>
+        <div class="pbar"><i style="width:${w}%;background:${k===trueCls?'#7ee0c0':'#6ea8fe'}"></i></div>`;}
+  el.innerHTML=h;
+}
+/* ---- norm-aware attacks (L∞ / L2 / L1), gradient-checked ---- */
+const NORMS={linf:{max:0.5,lab:'L∞',fmt:e=>e.toFixed(3)},
+             l2:{max:8,lab:'L2',fmt:e=>e.toFixed(2)},
+             l1:{max:50,lab:'L1',fmt:e=>e.toFixed(1)}};
+let curNorm='linf';
+function attackMethod(){return document.getElementById('mPGD').classList.contains('on')?'pgd':'fgsm';}
+function epsVal(){return +document.getElementById('eps').value/100*NORMS[curNorm].max;}
+function stepsVal(){return +document.getElementById('steps').value;}
+function updateEpsLabel(){document.getElementById('epsV').textContent=NORMS[curNorm].lab+' = '+NORMS[curNorm].fmt(epsVal());}
+function stepDirN(g,norm){const out=new Float32Array(D);
+  if(norm==='linf'){for(let i=0;i<D;i++)out[i]=Math.sign(g[i]);}
+  else{let n=0;for(let i=0;i<D;i++)n+=g[i]*g[i];n=Math.sqrt(n)+1e-12;for(let i=0;i<D;i++)out[i]=g[i]/n;}
+  return out;}
+function projNormD(delta,eps,norm){
+  if(norm==='linf'){for(let i=0;i<D;i++)delta[i]=Math.max(-eps,Math.min(eps,delta[i]));}
+  else{let n=0;for(let i=0;i<D;i++)n+=delta[i]*delta[i];n=Math.sqrt(n);if(n>eps){const s=eps/n;for(let i=0;i<D;i++)delta[i]*=s;}}}
+function attackL1(m,x,y,eps,maxIters){const a=Float32Array.from(x);let used=0;  // greedy sparse (saliency) attack
+  for(let it=0;it<maxIters;it++){const g=gradInput(m,a,y);let best=-1,bs=0,bdir=0,broom=0;
+    for(let i=0;i<D;i++){const dir=g[i]>0?1:-1;const room=dir>0?(1-a[i]):a[i];if(room<1e-3)continue;
+      const sc=Math.abs(g[i]);if(sc>bs){bs=sc;best=i;bdir=dir;broom=room;}}
+    if(best<0)break;const amt=Math.min(broom,eps-used);if(amt<=1e-4)break;
+    a[best]+=bdir*amt;used+=amt;if(used>=eps-1e-4)break;}
+  return a;}
+function attackNorm(m,x,y,eps,steps,norm){
+  if(eps<=0)return Float32Array.from(x);
+  if(norm==='l1')return attackL1(m,x,y,eps,Math.max(steps,40));
+  const a=Float32Array.from(x);const alpha=steps===1?eps:2.5*eps/steps;
+  for(let s=0;s<steps;s++){const g=gradInput(m,a,y);const dir=stepDirN(g,norm);
+    for(let i=0;i<D;i++)a[i]+=alpha*dir[i];
+    const delta=new Float32Array(D);for(let i=0;i<D;i++)delta[i]=a[i]-x[i];
+    projNormD(delta,eps,norm);for(let i=0;i<D;i++)a[i]=clip01(x[i]+delta[i]);}
+  return a;}
+function makeAdv(m,x,y){const steps=attackMethod()==='pgd'?stepsVal():1;return attackNorm(m,x,y,epsVal(),steps,curNorm);}
+function attack(){
+  if(!trained||!curX)return;
+  // craft adversarial against the STANDARD model (the attacker's target), test BOTH models on it
+  const adv=makeAdv(modelS,curX,curY);
+  const pert=new Float32Array(D);for(let d=0;d<D;d++)pert[d]=adv[d]-curX[d];
+  draw28(document.getElementById('cOrig'),curX);
+  draw28(document.getElementById('cPert'),pert,'pert');
+  draw28(document.getElementById('cAdv'),adv);
+  // standard
+  const sO=predict(modelS,curX), sA=predict(modelS,adv);
+  predBars(document.getElementById('predS'),sA.p,curY);
+  const fS=document.getElementById('flipS');
+  if(sA.cls!==curY){fS.className='flip bad';fS.textContent='✗ says "'+sA.cls+'" ('+(sA.conf*100).toFixed(0)+'%) — fooled';}
+  else{fS.className='flip ok';fS.textContent='✓ still "'+sA.cls+'" ('+(sA.conf*100).toFixed(0)+'%)';}
+  // robust
+  const rA=predict(modelR,adv);
+  predBars(document.getElementById('predR'),rA.p,curY);
+  const fR=document.getElementById('flipR');
+  if(rA.cls!==curY){fR.className='flip bad';fR.textContent='✗ says "'+rA.cls+'" ('+(rA.conf*100).toFixed(0)+'%)';}
+  else{fR.className='flip ok';fR.textContent='✓ holds: "'+rA.cls+'" ('+(rA.conf*100).toFixed(0)+'%)';}
+  if(slice.ready && slice.x0===curX) drawSlice(adv);
+}
+function pickDigit(){
+  if(!TEST.length){ // fabricate a blank if no data
+    curX=new Float32Array(D);curY=0;return;}
+  const ex=TEST[Math.floor(Math.random()*TEST.length)];curX=Float32Array.from(ex.x);curY=ex.y;
+  invalidateSlice();
+  if(trained)attack(); else draw28(document.getElementById('cOrig'),curX);
+}
+
+/* controls */
+document.getElementById('mFGSM').onclick=()=>{document.getElementById('mFGSM').classList.add('on');document.getElementById('mPGD').classList.remove('on');
+  document.getElementById('stepsRow').style.display='none';document.getElementById('steps').style.display='none';attack();};
+document.getElementById('mPGD').onclick=()=>{document.getElementById('mPGD').classList.add('on');document.getElementById('mFGSM').classList.remove('on');
+  document.getElementById('stepsRow').style.display='flex';document.getElementById('steps').style.display='block';attack();};
+document.getElementById('eps').oninput=()=>{updateEpsLabel();attack();};
+document.getElementById('steps').oninput=e=>{document.getElementById('stepsV').textContent=stepsVal();attack();};
+function setNorm(n){curNorm=n;
+  document.getElementById('nLinf').classList.toggle('on',n==='linf');
+  document.getElementById('nL2').classList.toggle('on',n==='l2');
+  document.getElementById('nL1').classList.toggle('on',n==='l1');
+  updateEpsLabel();attack();}
+document.getElementById('nLinf').onclick=()=>setNorm('linf');
+document.getElementById('nL2').onclick=()=>setNorm('l2');
+document.getElementById('nL1').onclick=()=>setNorm('l1');
+document.getElementById('newDigit').onclick=pickDigit;
+document.getElementById('reattack').onclick=attack;
+document.getElementById('trainBtn').onclick=trainAll;
+
+/* draw pad */
+const pad=document.getElementById('pad'),pg=pad.getContext('2d');
+pg.fillStyle='#000';pg.fillRect(0,0,280,280);pg.strokeStyle='#fff';pg.lineWidth=22;pg.lineCap='round';pg.lineJoin='round';
+let drawing=false,lastP=null;
+function padPos(e){const r=pad.getBoundingClientRect();const t=e.touches?e.touches[0]:e;
+  return [(t.clientX-r.left)/r.width*280,(t.clientY-r.top)/r.height*280];}
+function startDraw(e){drawing=true;lastP=padPos(e);e.preventDefault();}
+function moveDraw(e){if(!drawing)return;const p=padPos(e);pg.beginPath();pg.moveTo(lastP[0],lastP[1]);pg.lineTo(p[0],p[1]);pg.stroke();lastP=p;e.preventDefault();}
+function endDraw(){drawing=false;}
+pad.addEventListener('mousedown',startDraw);pad.addEventListener('mousemove',moveDraw);
+window.addEventListener('mouseup',endDraw);
+pad.addEventListener('touchstart',startDraw);pad.addEventListener('touchmove',moveDraw);pad.addEventListener('touchend',endDraw);
+document.getElementById('clearPad').onclick=()=>{pg.fillStyle='#000';pg.fillRect(0,0,280,280);};
+document.getElementById('usePad').onclick=()=>{
+  const tmp=document.createElement('canvas');tmp.width=28;tmp.height=28;const tg=tmp.getContext('2d');
+  tg.drawImage(pad,0,0,28,28);const px=tg.getImageData(0,0,28,28).data;
+  curX=new Float32Array(D);for(let i=0;i<784;i++)curX[i]=px[i*4]/255;curY=predict(modelS,curX).cls; // treat model's clean pred as "true"
+  invalidateSlice();attack();
+};
+
+/* robustness curve (FGSM) */
+document.getElementById('curveBtn').onclick=async()=>{
+  const btn=document.getElementById('curveBtn');btn.disabled=true;btn.textContent='Computing…';
+  const epsList=[0,0.05,0.1,0.15,0.2,0.25,0.3];const sub=TEST.slice(0,150);
+  const accS=[],accR=[];
+  for(const e of epsList){
+    accS.push(accuracy(modelS,sub,e===0?null:(m,x,y)=>fgsm(m,x,y,e)));
+    accR.push(accuracy(modelR,sub,e===0?null:(m,x,y)=>fgsm(m,x,y,e)));
+    await sleep();
+  }
+  drawCurve(epsList,accS,accR);btn.textContent='Recompute robustness curve';btn.disabled=false;
+};
+function drawCurve(xs,aS,aR){
+  const c=document.getElementById('curve'),g=c.getContext('2d'),W=c.width,Hh=c.height,pad={l:42,r:12,t:14,b:30};
+  g.clearRect(0,0,W,Hh);g.fillStyle='#0c0f16';g.fillRect(0,0,W,Hh);
+  const X=v=>pad.l+v/0.3*(W-pad.l-pad.r),Y=v=>Hh-pad.b-v*(Hh-pad.t-pad.b);
+  g.strokeStyle='#222838';for(let q=0;q<=4;q++){const y=Y(q/4);g.beginPath();g.moveTo(pad.l,y);g.lineTo(W-pad.r,y);g.stroke();
+    g.fillStyle='#9aa3b2';g.font='10px sans-serif';g.fillText((q*25)+'%',6,y+3);}
+  g.fillStyle='#9aa3b2';g.fillText('ε',W-18,Hh-10);
+  function plot(arr,col){g.strokeStyle=col;g.lineWidth=2.4;g.beginPath();
+    xs.forEach((e,i)=>{const x=X(e),y=Y(arr[i]);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();
+    xs.forEach((e,i)=>{g.fillStyle=col;g.beginPath();g.arc(X(e),Y(arr[i]),3,0,7);g.fill();});}
+  plot(aS,'#ff7b72');plot(aR,'#7ee0c0');
+  g.fillStyle='#ff7b72';g.fillText('standard',W-110,20);g.fillStyle='#7ee0c0';g.fillText('robust',W-110,34);
+}
+
+/* 2D decision slice — dynamic: cached regions + moving original/adversarial points */
+const CLASS_COL=['#6ea8fe','#ff7b72','#7ee0c0','#ffd479','#a78bfa','#f472b6','#fb923c','#4ade80','#22d3ee','#e879f9'];
+function invalidateSlice(){slice.ready=false;
+  ['sliceS','sliceR'].forEach(id=>{const c=document.getElementById(id);if(!c)return;const g=c.getContext('2d');
+    g.fillStyle='#0c0f16';g.fillRect(0,0,c.width,c.height);
+    g.fillStyle='#9aa3b2';g.font='10px sans-serif';g.textAlign='center';g.fillText('press Compute',c.width/2,c.height/2);});}
+function buildBg(m,dir1,dir2,G,R){const map=new Uint8Array(G*G);const tmp=new Float32Array(D);
+  for(let iy=0;iy<G;iy++)for(let ix=0;ix<G;ix++){const a=(ix/(G-1)*2-1)*R,b=(iy/(G-1)*2-1)*R;
+    for(let d=0;d<D;d++)tmp[d]=clip01(curX[d]+a*dir1[d]+b*dir2[d]);map[iy*G+ix]=predict(m,tmp).cls;}
+  return map;}
+function computeSliceBg(){
+  const G=37,R=slice.R;const gdir=gradInput(modelS,curX,curY);
+  const dir1=new Float32Array(D);for(let d=0;d<D;d++)dir1[d]=Math.sign(gdir[d]);   // adversarial (L∞) direction
+  const dir2=new Float32Array(D);for(let d=0;d<D;d++)dir2[d]=Math.random()<0.5?-1:1; // random direction
+  slice.dir1=dir1;slice.dir2=dir2;slice.x0=curX;slice.G=G;
+  slice.bgS=buildBg(modelS,dir1,dir2,G,R);slice.bgR=buildBg(modelR,dir1,dir2,G,R);
+  slice.ready=true;
+}
+function projCoef(adv,dir){let s=0;for(let d=0;d<D;d++)s+=(adv[d]-curX[d])*dir[d];return s/D;}
+function drawSlicePanel(id,map,a,b,m,adv){
+  const c=document.getElementById(id),g=c.getContext('2d'),G=slice.G,R=slice.R,cell=c.width/G;
+  for(let iy=0;iy<G;iy++)for(let ix=0;ix<G;ix++){g.fillStyle=CLASS_COL[map[iy*G+ix]];g.fillRect(ix*cell,iy*cell,cell+1,cell+1);}
+  const clamp=(v,m2)=>Math.max(0,Math.min(m2,v));
+  const PX=v=>clamp((v/R*0.5+0.5)*c.width,c.width), PY=v=>clamp((v/R*0.5+0.5)*c.height,c.height);
+  const ox=PX(0),oy=PY(0),ax=PX(a),ay=PY(b);
+  g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();g.moveTo(ox,oy);g.lineTo(ax,ay);g.stroke();
+  g.beginPath();g.arc(ox,oy,5,0,7);g.fillStyle='#fff';g.fill();g.lineWidth=1.5;g.strokeStyle='#000';g.stroke();
+  const fooled=predict(m,adv).cls!==curY;
+  g.save();g.translate(ax,ay);g.strokeStyle=fooled?'#ff3b3b':'#000';g.lineWidth=3;
+  g.beginPath();g.moveTo(-6,-6);g.lineTo(6,6);g.moveTo(6,-6);g.lineTo(-6,6);g.stroke();
+  g.strokeStyle=fooled?'#ff3b3b':'#ffd479';g.lineWidth=2;
+  g.beginPath();g.moveTo(-6,-6);g.lineTo(6,6);g.moveTo(6,-6);g.lineTo(-6,6);g.stroke();g.restore();
+}
+function drawSlice(adv){
+  if(!slice.ready)return; if(!adv)adv=makeAdv(modelS,curX,curY);
+  const a=projCoef(adv,slice.dir1), b=projCoef(adv,slice.dir2);
+  drawSlicePanel('sliceS',slice.bgS,a,b,modelS,adv);
+  drawSlicePanel('sliceR',slice.bgR,a,b,modelR,adv);
+}
+document.getElementById('sliceBtn').onclick=async()=>{
+  const btn=document.getElementById('sliceBtn');btn.disabled=true;btn.textContent='Computing…';
+  await sleep();
+  computeSliceBg();drawSlice(makeAdv(modelS,curX,curY));
+  btn.textContent='Recompute slice';btn.disabled=false;
+};
+
+/* go */
+updateEpsLabel();
+loadMNIST();
+</script>
+</body>
+</html>

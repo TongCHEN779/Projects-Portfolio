@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wrapping a shape in a polynomial</title>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:28px;margin:2px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:760px}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
+  @media(min-width:860px){.app{grid-template-columns:minmax(0,1fr) 290px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0c0f16;cursor:crosshair}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);
+    border-radius:9px;padding:7px 10px;cursor:pointer}
+  .seg button.on{background:var(--blue);color:#0b1020;border-color:var(--blue)}
+  label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:14px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .row2{display:flex;gap:8px;margin-top:12px}
+  .row2 button{flex:1;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);border-radius:9px;padding:9px;cursor:pointer}
+  .read{background:#10131c;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px}
+  .read .r{display:flex;justify-content:space-between;margin:3px 0}
+  .read b{font-variant-numeric:tabular-nums}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ POLYNOMIAL OPTIMIZATION · SHAPE APPROXIMATION</div>
+  <h1>Wrapping a shape in a polynomial</h1>
+  <p class="lede">Given only a cloud of points, can a single polynomial learn their <i>shape</i>? Yes — build
+     the cloud's moment matrix and its <b>Christoffel–Darboux</b> function stays small on the data and shoots
+     up everywhere else. Its sub-level set wraps the shape, and the higher the polynomial degree, the tighter
+     it hugs — even non-convex shapes with holes. Pick a shape or draw your own.</p>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="plot" width="560" height="460"></canvas>
+      <div class="hint">In <b>Draw</b> mode, click or drag on the canvas to scatter points.</div>
+    </div>
+    <div class="panel">
+      <h2>Shape</h2>
+      <div class="seg" id="shapes">
+        <button data-s="ring" class="on">Ring</button>
+        <button data-s="moons">Two moons</button>
+        <button data-s="spiral">Spiral</button>
+        <button data-s="heart">Heart</button>
+        <button data-s="draw">✎ Draw</button>
+      </div>
+
+      <label>Polynomial degree <span id="degV">4</span></label>
+      <input id="deg" type="range" min="2" max="8" step="2" value="4">
+      <label>Tightness <span id="tauV">0.90</span></label>
+      <input id="tau" type="range" min="70" max="99" value="90">
+
+      <div class="row2">
+        <button id="resample">↻ Resample</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <div class="read" id="read"></div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <p><b>How it works.</b> From the points we form the empirical <b>moment matrix</b>
+       <code>M = (1/N) Σ v(xᵢ) v(xᵢ)ᵀ</code>, where <code>v(x)</code> stacks all monomials up to the chosen
+       degree. The <b>Christoffel–Darboux</b> polynomial <code>Λ(x) = v(x)ᵀ M⁻¹ v(x)</code> is small where the
+       data lives and large elsewhere; the shaded region is its sub-level set <code>{Λ ≤ τ}</code>, an estimate
+       of the shape. Raise the degree and the boundary curves to fit; raise tightness and it hugs closer. All
+       of this runs live in your browser — no solver needed.</p>
+    <p style="margin-top:10px"><b>Why I care.</b> This is the data-driven cousin of my research on
+       <b>SOS / level-set shape approximation</b> (Lasserre's moment–SOS machinery), where a polynomial's level
+       set is certified to enclose a semialgebraic set — e.g., bounding the image of a box under a neural
+       network. The certified version solves a semidefinite program; this empirical-moment version gives the
+       same geometric intuition, instantly and interactively.</p>
+  </div>
+</div>
+
+<script>
+/* ===================== Christoffel–Darboux core ===================== */
+function monoExp(d){const e=[];for(let s=0;s<=d;s++)for(let a=s;a>=0;a--)e.push([a,s-a]);return e;}
+function vecAt(exps,x,y){const v=new Array(exps.length);for(let i=0;i<exps.length;i++){const e=exps[i];v[i]=Math.pow(x,e[0])*Math.pow(y,e[1]);}return v;}
+function matInv(A){const n=A.length;const M=A.map((r,i)=>r.concat(Array.from({length:n},(_,j)=>i===j?1:0)));
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];
+    const pv=M[c][c];if(Math.abs(pv)<1e-13)return null;for(let j=0;j<2*n;j++)M[c][j]/=pv;
+    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c];if(f===0)continue;for(let j=0;j<2*n;j++)M[r][j]-=f*M[c][j];}}
+  return M.map(r=>r.slice(n));}
+
+let PTS=[], deg=4, Minv=null, exps=[], field=null, fieldN=110, tauVal=0;
+const dom=[-1.35,1.35];
+
+function computeField(){
+  exps=monoExp(deg);const s=exps.length;
+  if(PTS.length<s+2){Minv=null;field=null;return;}
+  const M=Array.from({length:s},()=>new Array(s).fill(0));
+  for(const[px,py]of PTS){const v=vecAt(exps,px,py);for(let i=0;i<s;i++){const vi=v[i];for(let j=i;j<s;j++)M[i][j]+=vi*v[j];}}
+  for(let i=0;i<s;i++){for(let j=i;j<s;j++){M[i][j]/=PTS.length;M[j][i]=M[i][j];} M[i][i]+=1e-4;}
+  Minv=matInv(M);
+  if(!Minv){field=null;return;}
+  // Λ on points (for the data-driven threshold) and on a grid
+  const onPts=PTS.map(([x,y])=>lam(x,y));
+  PTS._lam=onPts.slice().sort((a,b)=>a-b);
+  field=new Float32Array(fieldN*fieldN);
+  for(let j=0;j<fieldN;j++)for(let i=0;i<fieldN;i++){
+    const x=dom[0]+(dom[1]-dom[0])*i/(fieldN-1), y=dom[0]+(dom[1]-dom[0])*j/(fieldN-1);
+    field[j*fieldN+i]=lam(x,y);}
+}
+function lam(x,y){const v=vecAt(exps,x,y);const s=exps.length;let acc=0;
+  for(let i=0;i<s;i++){const row=Minv[i];let t=0;for(let j=0;j<s;j++)t+=row[j]*v[j];acc+=v[i]*t;}return acc;}
+function quantile(sorted,q){if(!sorted||!sorted.length)return 0;const idx=Math.min(sorted.length-1,Math.floor(q*(sorted.length-1)));return sorted[idx];}
+
+/* ===================== shapes ===================== */
+function gen(kind){const p=[];const R=()=>Math.random();
+  if(kind==='ring'){for(let i=0;i<420;i++){const t=2*Math.PI*R(),r=0.62+0.06*(R()-0.5);p.push([r*Math.cos(t)+0.04*(R()-0.5),r*Math.sin(t)+0.04*(R()-0.5)]);}}
+  else if(kind==='moons'){for(let i=0;i<240;i++){const t=Math.PI*R();p.push([0.6*Math.cos(t)-0.25+0.05*(R()-0.5),0.6*Math.sin(t)-0.2+0.05*(R()-0.5)]);}
+    for(let i=0;i<240;i++){const t=Math.PI*R();p.push([0.6*Math.cos(t)+0.25+0.05*(R()-0.5),-0.6*Math.sin(t)+0.2+0.05*(R()-0.5)]);}}
+  else if(kind==='spiral'){for(let i=0;i<450;i++){const t=R()*3.2*Math.PI,r=0.12+t*0.11;if(r>1.1)continue;p.push([r*Math.cos(t)+0.03*(R()-0.5),r*Math.sin(t)+0.03*(R()-0.5)]);}}
+  else if(kind==='heart'){for(let i=0;i<450;i++){const t=2*Math.PI*R();const hx=16*Math.pow(Math.sin(t),3);
+    const hy=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+    p.push([hx/19+0.04*(R()-0.5),hy/19+0.04*(R()-0.5)]);}}
+  return p;}
+
+/* ===================== view ===================== */
+const cv=document.getElementById('plot'),ctx=cv.getContext('2d');
+function X(x){return (x-dom[0])/(dom[1]-dom[0])*cv.width;}
+function Y(y){return cv.height-(y-dom[0])/(dom[1]-dom[0])*cv.height;}
+/* marching squares: draw the level-set curve {Λ = L} */
+function lerp(p,q,t){return p+(q-p)*t;}
+function edgePt(e,a,b,c,d,x0,x1,y0,y1,L){
+  if(e==='T')return [lerp(x0,x1,(L-a)/((b-a)||1e-9)), y0];
+  if(e==='R')return [x1, lerp(y0,y1,(L-b)/((c-b)||1e-9))];
+  if(e==='B')return [lerp(x1,x0,(L-c)/((d-c)||1e-9)), y1];
+  return [x0, lerp(y1,y0,(L-d)/((a-d)||1e-9))]; // 'L'
+}
+const MS={1:[['L','T']],2:[['T','R']],3:[['L','R']],4:[['R','B']],5:[['L','T'],['R','B']],
+  6:[['T','B']],7:[['L','B']],8:[['B','L']],9:[['T','B']],10:[['T','R'],['B','L']],
+  11:[['R','B']],12:[['R','L']],13:[['T','R']],14:[['T','L']]};
+function fillLevelSet(L){ // shade the sub-level set {Λ ≤ L}
+  const cw=cv.width/(fieldN-1), ch=cv.height/(fieldN-1);
+  ctx.fillStyle='rgba(126,224,192,0.14)';
+  for(let j=0;j<fieldN;j++)for(let i=0;i<fieldN;i++){
+    if(field[j*fieldN+i]<=L){const x=dom[0]+(dom[1]-dom[0])*i/(fieldN-1),y=dom[0]+(dom[1]-dom[0])*j/(fieldN-1);
+      ctx.fillRect(X(x)-cw/2,Y(y)-ch/2,cw+1,ch+1);}
+  }
+}
+function drawContour(L){
+  const wx=i=>dom[0]+(dom[1]-dom[0])*i/(fieldN-1);
+  ctx.strokeStyle='#7ee0c0';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+  for(let j=0;j<fieldN-1;j++)for(let i=0;i<fieldN-1;i++){
+    const a=field[j*fieldN+i],b=field[j*fieldN+i+1],c=field[(j+1)*fieldN+i+1],d=field[(j+1)*fieldN+i];
+    const idx=(a<L?1:0)|(b<L?2:0)|(c<L?4:0)|(d<L?8:0);const segs=MS[idx];if(!segs)continue;
+    const x0=wx(i),x1=wx(i+1),y0=wx(j),y1=wx(j+1);
+    for(const [e1,e2] of segs){const p=edgePt(e1,a,b,c,d,x0,x1,y0,y1,L),q=edgePt(e2,a,b,c,d,x0,x1,y0,y1,L);
+      ctx.moveTo(X(p[0]),Y(p[1]));ctx.lineTo(X(q[0]),Y(q[1]));}
+  }
+  ctx.stroke();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#0c0f16';ctx.fillRect(0,0,cv.width,cv.height);
+  // axes
+  ctx.strokeStyle='#1c2233';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),cv.height);ctx.moveTo(0,Y(0));ctx.lineTo(cv.width,Y(0));ctx.stroke();
+  let tau=0;
+  if(field){ tau=quantile(PTS._lam, tauVal); fillLevelSet(tau); drawContour(tau); }
+  // points
+  ctx.fillStyle='#6ea8fe';for(const[px,py]of PTS){ctx.beginPath();ctx.arc(X(px),Y(py),2.1,0,7);ctx.fill();}
+  // readout
+  const s=monoExp(deg).length;
+  document.getElementById('read').innerHTML=
+    `<div class="r"><span>points</span><b>${PTS.length}</b></div>
+     <div class="r"><span>degree</span><b>${deg}</b></div>
+     <div class="r"><span>monomials (matrix size)</span><b>${s}</b></div>
+     <div class="r"><span>threshold τ</span><b>${field?tau.toFixed(1):'—'}</b></div>
+     ${PTS.length<s+2?'<div class="r" style="color:var(--gold)">need more points for this degree</div>':''}`;
+}
+
+/* ===================== controls ===================== */
+let mode='ring';
+function recompute(){computeField();draw();}
+document.querySelectorAll('#shapes button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#shapes button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  mode=b.dataset.s;
+  if(mode==='draw'){PTS=[];}else{PTS=gen(mode);}
+  recompute();
+});
+document.getElementById('deg').oninput=e=>{deg=+e.target.value;document.getElementById('degV').textContent=deg;recompute();};
+document.getElementById('tau').oninput=e=>{tauVal=+e.target.value/100;document.getElementById('tauV').textContent=tauVal.toFixed(2);draw();};
+document.getElementById('resample').onclick=()=>{if(mode!=='draw'){PTS=gen(mode);recompute();}};
+document.getElementById('clear').onclick=()=>{PTS=[];
+  document.querySelectorAll('#shapes button').forEach(x=>x.classList.toggle('on',x.dataset.s==='draw'));mode='draw';recompute();};
+
+/* draw mode: click/drag to scatter */
+let painting=false;
+function addPt(e){const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;
+  const x=dom[0]+(dom[1]-dom[0])*(t.clientX-r.left)/r.width;
+  const y=dom[0]+(dom[1]-dom[0])*(1-(t.clientY-r.top)/r.height);
+  for(let k=0;k<3;k++)PTS.push([x+0.03*(Math.random()-0.5),y+0.03*(Math.random()-0.5)]);}
+cv.addEventListener('mousedown',e=>{if(mode!=='draw')return;painting=true;addPt(e);recompute();});
+cv.addEventListener('mousemove',e=>{if(mode!=='draw'||!painting)return;addPt(e);
+  if(PTS.length%6===0)recompute(); else draw();});
+window.addEventListener('mouseup',()=>{if(painting){painting=false;recompute();}});
+cv.addEventListener('touchstart',e=>{if(mode!=='draw')return;painting=true;addPt(e);recompute();e.preventDefault();});
+cv.addEventListener('touchmove',e=>{if(mode!=='draw'||!painting)return;addPt(e);recompute();e.preventDefault();});
+cv.addEventListener('touchend',()=>{painting=false;});
+
+/* ===================== go ===================== */
+tauVal=0.90; PTS=gen('ring'); recompute();
+</script>
+</body>
+</html>

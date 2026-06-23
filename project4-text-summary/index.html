@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>k-Center Text Summary — a coreset of your messages</title>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:28px;margin:2px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:760px}
+  .input{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:16px 0}
+  textarea{width:100%;min-height:120px;resize:vertical;background:#10131c;color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font:inherit;font-size:13px;line-height:1.5}
+  .ctl{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .ctl input[type=range]{accent-color:var(--gold);flex:1;min-width:120px;max-width:260px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+  .seg button.on{background:var(--blue);color:#0b1020;border-color:var(--blue)}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:6px 0}
+  @media(min-width:820px){.app{grid-template-columns:minmax(0,1fr) 340px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0c0f16}
+  .stage .cap{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+  .sitem{display:flex;gap:9px;padding:9px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#10131c}
+  .sw{width:10px;height:10px;border-radius:3px;flex:none;margin-top:4px}
+  .sitem .t{font-size:13px}
+  .sitem .kw{font-size:11px;color:var(--muted);margin-top:3px}
+  .kw b{color:var(--gold);font-weight:600}
+  .subhead{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:12px 0 6px}
+  .subhead:first-child{margin-top:0}
+  .meta{font-size:11px;color:var(--muted)}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ EMBEDDINGS · CORESETS · k-CENTER</div>
+  <h1>Summarise a pile of messages with k-center</h1>
+  <p class="lede">Paste some text. We split it into units — individual <b>words</b> (for keywords) or
+     <b>sentences</b> (split on commas, not periods) — embed each as a vector, then run
+     <b>greedy k-center</b>: the farthest-first traversal that keeps picking the unit least like everything
+     chosen so far. The result is a <b>coreset</b> — k maximally diverse keywords or sentences that summarise
+     the whole pile. Toggle the unit below.</p>
+
+  <div class="input">
+    <textarea id="txt" spellcheck="false"></textarea>
+    <div class="ctl">
+      <span>unit:</span>
+      <div class="seg" id="segsel">
+        <button data-m="word" class="on">Words (keywords)</button>
+        <button data-m="sentence">Sentences (by comma)</button>
+        <button data-m="line">Lines</button>
+      </div>
+      <span>k = <b id="kV">4</b></span>
+      <input id="k" type="range" min="2" max="8" value="4">
+      <span id="stat"></span>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="plot" width="600" height="440"></canvas>
+      <div class="cap">Each dot is a unit — a <b>word</b> (keyword mode) or comma-split <b>sentence</b> — laid
+        out by similarity (MDS). Colour = nearest representative. Ringed dots ◎ are the chosen summary.</div>
+    </div>
+    <div class="panel">
+      <h2>Coreset vs. synthetic</h2>
+      <div id="summary"></div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <p><b>How it works.</b> Each message becomes a <b>TF-IDF</b> vector (words weighted by how distinctive they
+       are), so distance = <code>1 − cosine similarity</code>. <b>Greedy k-center</b> starts from the most
+       central message, then repeatedly adds the message <i>farthest</i> from everything picked so far. That
+       farthest-first rule is a classic 2-approximation to the k-center objective (minimise the largest
+       distance from any message to its nearest representative) — so the picks spread out to cover every theme.
+       The keywords under each pick are that representative's highest-weight TF-IDF terms. All client-side.</p>
+    <p style="margin-top:10px"><b>Select vs. synthesize.</b> The <span style="color:var(--ink)">coreset</span>
+       picks <i>existing</i> units (k-center). The <span style="color:var(--green)">synthetic</span> ones are
+       <b>generated by sparse reconstruction</b>: each cluster has a <b>centroid</b> — the mean of its members,
+       a new point that's no original message — and <b>matching pursuit</b> greedily stitches together short
+       phrase-fragments drawn from the cluster that best reconstruct that centroid. The result recombines the
+       cluster's wording into a sentence none of them actually wrote (the <code>…</code> marks where fragments
+       were joined). Fully fluent grammar would still want a language model on top; here the geometry + greedy
+       reconstruction already generate a synthetic summary.</p>
+    <p style="margin-top:10px"><b>Where this is useful.</b> Distilling a long thread, a feedback dump, or a
+       channel into a few representative messages, keywords, and synthesized themes — preserving the diversity
+       of what was said, not just the most frequent words.</p>
+  </div>
+</div>
+
+<script>
+const SAMPLE=[
+"The production build is broken again — null pointer on deploy",
+"Deploy keeps failing with a null reference error in the pipeline",
+"Rolled back the last release, the deploy bug is still there",
+"Anyone up for lunch at the thai place around noon?",
+"Lunch plans? thinking tacos today",
+"Grabbing coffee, want anything from the cafe?",
+"The quarterly report deadline is Friday, please send your slides",
+"Reminder: Q3 report slides due end of week",
+"Can someone review my section of the report before Friday?",
+"Great game last night, that overtime was insane",
+"Did you watch the match yesterday? unbelievable finish",
+"Server CPU is spiking to 100% during peak hours",
+"We need to scale the database, queries are timing out",
+"Latency alerts firing again on the checkout service",
+"Happy Friday everyone — any weekend plans?",
+"Long weekend ahead, heading to the mountains for a hike"
+].join("\n");
+
+const STOP=new Set("the a an and or but of to in on for with at by from is are was were be been being this that these those it its as we you they i he she him her our your their not no do does did so if then than too very can will just get got im ive am pm".split(" "));
+function tok(t){return t.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>2&&!STOP.has(w));}
+function tfidf(docs){
+  const toks=docs.map(tok), df={}, N=docs.length;
+  toks.forEach(ts=>new Set(ts).forEach(w=>df[w]=(df[w]||0)+1));
+  const idf={};for(const w in df)idf[w]=Math.log(N/df[w])+1;
+  const vecs=toks.map(ts=>{const tf={};ts.forEach(w=>tf[w]=(tf[w]||0)+1);const v={};let n=0;
+    for(const w in tf){const x=tf[w]*idf[w];v[w]=x;n+=x*x;}n=Math.sqrt(n)||1;for(const w in v)v[w]/=n;return v;});
+  return {vecs,toks,idf};
+}
+function cos(a,b){let s=0,A=a,B=b;if(Object.keys(a).length>Object.keys(b).length){A=b;B=a;}for(const w in A)if(B[w])s+=A[w]*B[w];return s;}
+function dist(a,b){return Math.max(0,1-cos(a,b));}
+function topTerms(vec,n){return Object.entries(vec).sort((x,y)=>y[1]-x[1]).slice(0,n).map(e=>e[0]);}
+/* synthesize: mean of a cluster's vectors = a NEW point (k-means centroid), decoded to its top terms */
+function centroid(members){const acc={};members.forEach(idx=>{const v=VECS[idx];for(const k in v)acc[k]=(acc[k]||0)+v[k];});
+  let n=0;for(const k in acc){acc[k]/=(members.length||1);n+=acc[k]*acc[k];}n=Math.sqrt(n)||1;for(const k in acc)acc[k]/=n;return acc;}
+
+function kcenter(vecs,k){const N=vecs.length;
+  let first=0,bs=1e9;for(let i=0;i<N;i++){let s=0;for(let j=0;j<N;j++)s+=dist(vecs[i],vecs[j]);if(s<bs){bs=s;first=i;}}
+  const centers=[first];const mind=vecs.map(v=>dist(v,vecs[first]));
+  while(centers.length<Math.min(k,N)){let far=0,fd=-1;for(let i=0;i<N;i++)if(mind[i]>fd){fd=mind[i];far=i;}
+    if(centers.includes(far))break;centers.push(far);for(let i=0;i<N;i++){const d=dist(vecs[i],vecs[far]);if(d<mind[i])mind[i]=d;}}
+  const radius=Math.max(...mind);
+  const assign=vecs.map(v=>{let bi=centers[0],bd=1e9;centers.forEach(c=>{const d=dist(v,vecs[c]);if(d<bd){bd=d;bi=c;}});return bi;});
+  return {centers,radius,assign};
+}
+/* classical MDS -> 2D via power iteration */
+function mds(vecs){const N=vecs.length;const D2=vecs.map((a)=>vecs.map(b=>{const d=dist(a,b);return d*d;}));
+  const rm=D2.map(r=>r.reduce((s,x)=>s+x,0)/N);const am=rm.reduce((s,x)=>s+x,0)/N;
+  const B=D2.map((r,i)=>r.map((v,j)=>-0.5*(v-rm[i]-rm[j]+am)));
+  function pit(M){let v=M.map(()=>Math.random()-0.5);for(let it=0;it<160;it++){const w=M.map(r=>{let s=0;for(let j=0;j<N;j++)s+=r[j]*v[j];return s;});
+    let n=Math.sqrt(w.reduce((s,x)=>s+x*x,0))||1;v=w.map(x=>x/n);}
+    let lam=0;for(let i=0;i<N;i++){let t=0;for(let j=0;j<N;j++)t+=B[i][j]*v[j];lam+=v[i]*t;}return{v,lam:Math.max(0,lam)};}
+  const e1=pit(B);const B2=B.map((r,i)=>r.map((x,j)=>x-e1.lam*e1.v[i]*e1.v[j]));const e2=pit(B2);
+  return vecs.map((_,i)=>[e1.v[i]*Math.sqrt(e1.lam),e2.v[i]*Math.sqrt(e2.lam)]);
+}
+
+const PAL=['#6ea8fe','#7ee0c0','#ffd479','#ff7b72','#a78bfa','#f472b6','#fb923c','#22d3ee'];
+const cv=document.getElementById('plot'),ctx=cv.getContext('2d');
+let DOCS=[],VECS=[],COORD=[],RES=null,colorOf={},segMode='word',IDF={};
+const UNIT={word:'words',sentence:'sentences',line:'lines'};
+
+// sentence = split by comma (not period); line = by newline.
+function segment(text,mode){
+  const parts = mode==='line' ? text.split(/\n+/) : text.split(/[,\n]+/);
+  return parts.map(s=>s.trim()).filter(s=>s.length>1 && tok(s).length>=1);
+}
+// Word embedding: each word -> normalized centroid of the (comma/newline) chunks it appears in,
+// so words used in similar contexts are close. Distinct keywords end up far apart.
+function buildWordVecs(text){
+  const ctx=text.split(/[,\n]+/).map(s=>s.trim()).filter(s=>s.length);
+  if(ctx.length<2) return {words:[],wvec:[]};
+  const tf=tfidf(ctx);
+  const freq={};tf.toks.forEach(ts=>ts.forEach(w=>freq[w]=(freq[w]||0)+1));
+  let words=Object.keys(freq);
+  if(words.length>70) words=words.sort((a,b)=>freq[b]-freq[a]).slice(0,70);
+  const wvec=words.map(w=>{const acc={};let cnt=0;
+    tf.toks.forEach((ts,di)=>{if(ts.indexOf(w)>=0){cnt++;const v=tf.vecs[di];for(const k in v)acc[k]=(acc[k]||0)+v[k];}});
+    let n=0;for(const k in acc){acc[k]/=(cnt||1);n+=acc[k]*acc[k];}n=Math.sqrt(n)||1;for(const k in acc)acc[k]/=n;
+    return acc;});
+  return {words,wvec};
+}
+
+function analyze(){
+  const text=document.getElementById('txt').value;
+  if(segMode==='word'){const wb=buildWordVecs(text);DOCS=wb.words;VECS=wb.wvec;}
+  else{DOCS=segment(text,segMode);if(DOCS.length>=2){const m=tfidf(DOCS);VECS=m.vecs;IDF=m.idf;}else VECS=[];}
+  document.getElementById('kV').textContent=document.getElementById('k').value;
+  if(DOCS.length<2){document.getElementById('summary').innerHTML='<div class="meta">Add more text.</div>';
+    ctx.clearRect(0,0,cv.width,cv.height);document.getElementById('stat').textContent='';return;}
+  const k=Math.min(+document.getElementById('k').value, DOCS.length);
+  RES=kcenter(VECS,k);
+  COORD=mds(VECS);
+  colorOf={};RES.centers.forEach((c,i)=>colorOf[c]=PAL[i%PAL.length]);
+  draw();renderSummary();
+  document.getElementById('stat').textContent=DOCS.length+' '+UNIT[segMode]+' · coverage radius '+RES.radius.toFixed(2);
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#0c0f16';ctx.fillRect(0,0,cv.width,cv.height);
+  let lo=[1e9,1e9],hi=[-1e9,-1e9];COORD.forEach(p=>{lo[0]=Math.min(lo[0],p[0]);lo[1]=Math.min(lo[1],p[1]);hi[0]=Math.max(hi[0],p[0]);hi[1]=Math.max(hi[1],p[1]);});
+  const pad=34;const sx=v=>pad+(v-lo[0])/((hi[0]-lo[0])||1)*(cv.width-2*pad);
+  const sy=v=>cv.height-pad-(v-lo[1])/((hi[1]-lo[1])||1)*(cv.height-2*pad);
+  // lines to assigned center
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
+  COORD.forEach((p,i)=>{const c=RES.assign[i];ctx.beginPath();ctx.moveTo(sx(p[0]),sy(p[1]));ctx.lineTo(sx(COORD[c][0]),sy(COORD[c][1]));ctx.stroke();});
+  // points
+  COORD.forEach((p,i)=>{const col=colorOf[RES.assign[i]]||'#9aa3b2';
+    ctx.beginPath();ctx.arc(sx(p[0]),sy(p[1]),4,0,7);ctx.fillStyle=col;ctx.globalAlpha=0.85;ctx.fill();ctx.globalAlpha=1;});
+  // centers ringed + number
+  RES.centers.forEach((c,i)=>{const x=sx(COORD[c][0]),y=sy(COORD[c][1]);
+    ctx.beginPath();ctx.arc(x,y,8,0,7);ctx.fillStyle=colorOf[c];ctx.fill();
+    ctx.lineWidth=2.5;ctx.strokeStyle='#fff';ctx.stroke();
+    ctx.fillStyle='#0b1020';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,x,y);});
+}
+/* candidate phrase atoms: 2–4 word windows pulled from the cluster's member texts */
+function atoms(texts){const out=[];
+  texts.forEach((txt,mi)=>{const words=String(txt).split(/\s+/).filter(w=>w.length);
+    for(let n=2;n<=4;n++)for(let s=0;s+n<=words.length;s++){const seq=words.slice(s,s+n);
+      const vec={};let cnt=0;seq.forEach(w=>tok(w).forEach(t=>{if(IDF[t]){vec[t]=(vec[t]||0)+IDF[t];cnt++;}}));
+      if(cnt<1)continue;let nm=0;for(const k in vec)nm+=vec[k]*vec[k];nm=Math.sqrt(nm)||1;
+      out.push({text:seq.join(' '),vec,norm:nm,pos:[mi,s]});}});
+  return out;}
+/* matching pursuit: greedily reconstruct the centroid from phrase atoms -> stitched synthetic sentence */
+function matchingPursuit(target,cands,L){const r=Object.assign({},target);const picks=[],used=new Set();
+  for(let it=0;it<L;it++){let best=null,bs=1e-6;
+    for(const a of cands){if(used.has(a.text))continue;const sc=cos(r,a.vec)/a.norm;if(sc>bs){bs=sc;best=a;}}
+    if(!best)break;used.add(best.text);picks.push(best);const coef=cos(r,best.vec)/(best.norm*best.norm);
+    for(const k in best.vec)r[k]=(r[k]||0)-coef*best.vec[k];}
+  picks.sort((a,b)=>a.pos[0]-b.pos[0]||a.pos[1]-b.pos[1]);
+  return picks.map(p=>p.text).join(' … ');}
+function synth(members){
+  if(segMode==='word') return topTerms(centroid(members),2).join(' / ');
+  const T=centroid(members), A=atoms(members.map(m=>DOCS[m]));
+  return matchingPursuit(T,A,3) || topTerms(T,5).join(' ');
+}
+function renderSummary(){
+  const box=document.getElementById('summary');const esc=s=>String(s).replace(/</g,'&lt;');
+  let cs='',sy='';
+  RES.centers.forEach((c,i)=>{
+    const members=[];RES.assign.forEach((a,idx)=>{if(a===c)members.push(idx);});
+    const sw=`<span class="sw" style="background:${colorOf[c]}"></span>`;
+    cs+=`<div class="sitem">${sw}<div class="t"><b>${i+1}.</b> ${esc(DOCS[c])}</div></div>`;
+    sy+=`<div class="sitem">${sw}<div class="t"><b>${i+1}.</b> ${esc(synth(members))}</div></div>`;
+  });
+  box.innerHTML=`<div class="subhead">● Coreset — selected (real ${UNIT[segMode]})</div>${cs}
+    <div class="subhead">✦ Synthetic — generated (matching pursuit)</div>${sy}`;
+}
+document.getElementById('k').oninput=analyze;
+document.querySelectorAll('#segsel button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#segsel button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  segMode=b.dataset.m;analyze();});
+let deb;document.getElementById('txt').addEventListener('input',()=>{clearTimeout(deb);deb=setTimeout(analyze,350);});
+
+/* go */
+document.getElementById('txt').value=SAMPLE;
+analyze();
+</script>
+</body>
+</html>
