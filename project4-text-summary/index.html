@@ -43,6 +43,11 @@
   .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
   .explain p{color:var(--muted)}.explain b{color:var(--ink)}
   code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  .wordcloud{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 14px;
+    padding:18px 12px;min-height:96px}
+  .wordcloud .wc{font-weight:700;line-height:1.05;cursor:default;transition:transform .12s ease}
+  .wordcloud .wc:hover{transform:scale(1.09)}
+  .wordcloud .empty{color:var(--muted);font-size:13px;font-weight:400}
 </style>
 <link rel="stylesheet" href="../theme.css">
 <script src="../theme.js" defer></script>
@@ -83,6 +88,12 @@
       <h2>Coreset vs. synthetic</h2>
       <div id="summary"></div>
     </div>
+  </div>
+
+  <div class="stage" style="margin:0 0 18px">
+    <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 4px">Word cloud — the selected core summary</h2>
+    <div class="cap">Key terms drawn from the chosen representatives. Size = TF-IDF weight, colour = which representative it came from.</div>
+    <div id="wordcloud" class="wordcloud"></div>
   </div>
 
   <div class="explain">
@@ -127,7 +138,19 @@ const SAMPLE=[
 ].join("\n");
 
 const STOP=new Set("the a an and or but of to in on for with at by from is are was were be been being this that these those it its as we you they i he she him her our your their not no do does did so if then than too very can will just get got im ive am pm".split(" "));
-function tok(t){return t.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>2&&!STOP.has(w));}
+// CJK has no spaces, so Latin words are split on non-alphanumerics while CJK runs
+// are turned into overlapping character bigrams (a standard trick for Chinese/Japanese IR).
+const CJK_CHAR=/[㐀-鿿぀-ヿ가-힯]/;        // CJK ideographs + kana + Hangul
+const CJK_PUNCT="，。！？、；：…—·「」『』（）《》〈〉【】";      // full-width punctuation
+function tok(t){
+  const s=String(t).toLowerCase();
+  const out=[];
+  (s.match(/[a-z0-9]+/g)||[]).forEach(w=>{if(w.length>2&&!STOP.has(w))out.push(w);});
+  const cjk=s.match(new RegExp('['+CJK_CHAR.source.slice(1,-1)+']','g'))||[];
+  if(cjk.length===1)out.push(cjk[0]);
+  for(let i=0;i+1<cjk.length;i++)out.push(cjk[i]+cjk[i+1]);  // overlapping bigrams
+  return out;
+}
 function tfidf(docs){
   const toks=docs.map(tok), df={}, N=docs.length;
   toks.forEach(ts=>new Set(ts).forEach(w=>df[w]=(df[w]||0)+1));
@@ -171,13 +194,15 @@ const UNIT={word:'words',sentence:'sentences',line:'lines'};
 
 // sentence = split by comma (not period); line = by newline.
 function segment(text,mode){
-  const parts = mode==='line' ? text.split(/\n+/) : text.split(/[,\n]+/);
+  // sentence mode splits on clause punctuation — ASCII and full-width (CJK) alike
+  const SENT=new RegExp('[,\\n'+CJK_PUNCT+']+');
+  const parts = mode==='line' ? text.split(/\n+/) : text.split(new RegExp(SENT.source,'g'));
   return parts.map(s=>s.trim()).filter(s=>s.length>1 && tok(s).length>=1);
 }
 // Word embedding: each word -> normalized centroid of the (comma/newline) chunks it appears in,
 // so words used in similar contexts are close. Distinct keywords end up far apart.
 function buildWordVecs(text){
-  const ctx=text.split(/[,\n]+/).map(s=>s.trim()).filter(s=>s.length);
+  const ctx=text.split(new RegExp('[,\\n'+CJK_PUNCT+']+','g')).map(s=>s.trim()).filter(s=>s.length);
   if(ctx.length<2) return {words:[],wvec:[]};
   const tf=tfidf(ctx);
   const freq={};tf.toks.forEach(ts=>ts.forEach(w=>freq[w]=(freq[w]||0)+1));
@@ -196,12 +221,13 @@ function analyze(){
   else{DOCS=segment(text,segMode);if(DOCS.length>=2){const m=tfidf(DOCS);VECS=m.vecs;IDF=m.idf;}else VECS=[];}
   document.getElementById('kV').textContent=document.getElementById('k').value;
   if(DOCS.length<2){document.getElementById('summary').innerHTML='<div class="meta">Add more text.</div>';
-    ctx.clearRect(0,0,cv.width,cv.height);document.getElementById('stat').textContent='';return;}
+    ctx.clearRect(0,0,cv.width,cv.height);document.getElementById('stat').textContent='';
+    RES=null;renderCloud();return;}
   const k=Math.min(+document.getElementById('k').value, DOCS.length);
   RES=kcenter(VECS,k);
   COORD=mds(VECS);
   colorOf={};RES.centers.forEach((c,i)=>colorOf[c]=PAL[i%PAL.length]);
-  draw();renderSummary();
+  draw();renderSummary();renderCloud();
   document.getElementById('stat').textContent=DOCS.length+' '+UNIT[segMode]+' · coverage radius '+RES.radius.toFixed(2);
 }
 function draw(){
@@ -253,6 +279,30 @@ function renderSummary(){
   });
   box.innerHTML=`<div class="subhead">● Coreset — selected (real ${UNIT[segMode]})</div>${cs}
     <div class="subhead">✦ Synthetic — generated (matching pursuit)</div>${sy}`;
+}
+/* word cloud built from the selected core representatives */
+function renderCloud(){
+  const box=document.getElementById('wordcloud'); if(!box)return;
+  const esc=s=>String(s).replace(/</g,'&lt;');
+  if(!RES||!RES.centers.length){box.innerHTML='<span class="empty">Add more text to see a word cloud.</span>';return;}
+  // gather weighted, cluster-coloured terms from each representative
+  const merged={};  // term -> {weight,color}
+  RES.centers.forEach(c=>{
+    const col=colorOf[c];
+    let terms;
+    if(segMode==='word'){ terms=[[DOCS[c],1]]; }              // the picked keyword itself
+    else { terms=topTerms(VECS[c],6).map(t=>[t,VECS[c][t]||0]); } // top TF-IDF terms of the picked sentence
+    terms.forEach(([t,w])=>{ if(!t)return;
+      if(!merged[t]||w>merged[t].weight) merged[t]={weight:w,color:merged[t]?merged[t].color:col};
+      merged[t].weight=Math.max(merged[t].weight,w);
+    });
+  });
+  const items=Object.entries(merged).map(([term,o])=>({term,weight:o.weight,color:o.color}));
+  if(!items.length){box.innerHTML='<span class="empty">No terms to show.</span>';return;}
+  const ws=items.map(i=>i.weight),mn=Math.min(...ws),mx=Math.max(...ws);
+  const size=w=>{const t=mx>mn?(w-mn)/(mx-mn):0.5;return (14+t*28).toFixed(1)+'px';};
+  for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];} // scatter
+  box.innerHTML=items.map(i=>`<span class="wc" style="font-size:${size(i.weight)};color:${i.color}">${esc(i.term)}</span>`).join('');
 }
 document.getElementById('k').oninput=analyze;
 document.querySelectorAll('#segsel button').forEach(b=>b.onclick=()=>{
