@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Polynomial Optimization in 3D — the moment/SOS hierarchy</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
   :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
         --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
   a{color:var(--blue);text-decoration:none}
   .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
   .top{padding:24px 0 6px;font-size:14px}
@@ -19,19 +20,19 @@
   .presets{display:flex;gap:8px;margin:16px 0 4px}
   .presets button{font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:var(--panel);
     border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
-  .presets button.on{color:#0b1020;background:var(--gold);border-color:var(--gold)}
+  .presets button.on{color:var(--btn-ink);background:var(--gold);border-color:var(--gold)}
   .app{display:grid;grid-template-columns:1fr;gap:18px;margin:10px 0}
   @media(min-width:860px){.app{grid-template-columns:minmax(0,1fr) 290px}}
   .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px}
   #plot{width:100%;height:480px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;height:fit-content}
   .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
-  .prob{font-size:13px;background:#10131c;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
+  .prob{font-size:13px;background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
   .prob code{color:var(--gold)}
   label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:14px}
   input[type=range]{width:100%;accent-color:var(--gold)}
   .lad{margin-top:14px}
-  .lad .row{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border-radius:8px;margin:4px 0;background:#10131c;border:1px solid var(--line)}
+  .lad .row{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border-radius:8px;margin:4px 0;background:var(--inset);border:1px solid var(--line)}
   .lad .row.cur{border-color:var(--green);background:rgba(126,224,192,.10)}
   .lad .sw{width:11px;height:11px;border-radius:3px;flex:none}
   .lad .val{margin-left:auto;font-variant-numeric:tabular-nums}
@@ -40,8 +41,10 @@
   .read b{font-variant-numeric:tabular-nums}
   .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
   .explain p{color:var(--muted)}.explain b{color:var(--ink)}
-  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
 </style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -56,15 +59,15 @@
          surface below (rotate with your mouse); the green floor is the bound climbing the staircase.</p>
     </div>
     <svg class="cover-stairs" viewBox="0 0 250 150" aria-hidden="true">
-      <line x1="16" y1="28" x2="240" y2="28" stroke="#ffffff" stroke-dasharray="5 4" stroke-width="1.3"/>
-      <text x="16" y="22" fill="#9aa3b2" font-size="11">true minimum</text>
+      <line x1="16" y1="28" x2="240" y2="28" style="stroke:var(--ink)" stroke-dasharray="5 4" stroke-width="1.3"/>
+      <text x="16" y="22" style="fill:var(--muted)" font-size="11">true minimum</text>
       <path d="M20 124 L20 86 L75 86 L75 62 L130 62 L130 44 L185 44 L185 33 L240 33"
-            fill="none" stroke="#7ee0c0" stroke-width="3" stroke-linejoin="round"/>
-      <circle cx="240" cy="33" r="4.5" fill="#ffd479"/>
-      <text x="47"  y="140" fill="#7ee0c0" font-size="11" text-anchor="middle">r=1</text>
-      <text x="102" y="140" fill="#7ee0c0" font-size="11" text-anchor="middle">r=2</text>
-      <text x="157" y="140" fill="#7ee0c0" font-size="11" text-anchor="middle">r=3</text>
-      <text x="212" y="140" fill="#7ee0c0" font-size="11" text-anchor="middle">r=4</text>
+            fill="none" style="stroke:var(--green)" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="240" cy="33" r="4.5" style="fill:var(--gold)"/>
+      <text x="47"  y="140" style="fill:var(--green)" font-size="11" text-anchor="middle">r=1</text>
+      <text x="102" y="140" style="fill:var(--green)" font-size="11" text-anchor="middle">r=2</text>
+      <text x="157" y="140" style="fill:var(--green)" font-size="11" text-anchor="middle">r=3</text>
+      <text x="212" y="140" style="fill:var(--green)" font-size="11" text-anchor="middle">r=4</text>
     </svg>
   </div>
   <style>
@@ -134,6 +137,7 @@ const PRESETS={
 };
 let cur='cubic', SURF=null;
 function P(){return PRESETS[cur];}
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 function buildSurface(){
   const p=P(),N=70,[lo,hi]=p.domain;
@@ -148,21 +152,28 @@ function traces(b){
     {type:'surface',x:SURF.xs,y:SURF.ys,z:SURF.Z,colorscale:'Viridis',showscale:false,opacity:0.96,
      contours:{z:{show:true,usecolormap:true,width:1,project:{z:true}}}},
     {type:'surface',x:[lo,hi],y:[lo,hi],z:[[b,b],[b,b]],showscale:false,opacity:0.45,
-     colorscale:[[0,'#7ee0c0'],[1,'#7ee0c0']],hoverinfo:'skip'},
+     colorscale:[[0,THEME('--green')],[1,THEME('--green')]],hoverinfo:'skip'},
     {type:'scatter3d',mode:'markers',x:p.mins.map(m=>m[0]),y:p.mins.map(m=>m[1]),
-     z:p.mins.map(()=>p.trueMin),marker:{size:5,color:'#ffffff'}}
+     z:p.mins.map(()=>p.trueMin),marker:{size:5,color:THEME('--ink')}}
   ];
 }
 const layout={paper_bgcolor:'rgba(0,0,0,0)',margin:{l:0,r:0,t:0,b:0},showlegend:false,uirevision:'keep',
   scene:{aspectmode:'cube',uirevision:'keep',
-         xaxis:{title:'x',color:'#9aa3b2',gridcolor:'#2a2f3d',backgroundcolor:'#0c0f16',showbackground:true},
-         yaxis:{title:'y',color:'#9aa3b2',gridcolor:'#2a2f3d',backgroundcolor:'#0c0f16',showbackground:true},
-         zaxis:{title:'f',color:'#9aa3b2',gridcolor:'#2a2f3d',backgroundcolor:'#0c0f16',showbackground:true},
+         xaxis:{title:'x',showbackground:true},
+         yaxis:{title:'y',showbackground:true},
+         zaxis:{title:'f',showbackground:true},
          camera:{eye:{x:1.5,y:-1.6,z:0.9}}}};
+function applyAxisTheme(){
+  const col=THEME('--muted'), grid=THEME('--line'), back=THEME('--canvas-bg');
+  ['xaxis','yaxis','zaxis'].forEach(a=>{
+    layout.scene[a].color=col; layout.scene[a].gridcolor=grid; layout.scene[a].backgroundcolor=back;
+  });
+}
 
 function curLevel(){return P().levels[+document.getElementById('ord').value];}
 function render(){
   const p=P(),o=curLevel();
+  applyAxisTheme();
   // fixed axes so only the bound plane moves when the order changes
   layout.scene.xaxis.range=p.domain.slice();
   layout.scene.yaxis.range=p.domain.slice();
@@ -175,7 +186,7 @@ function render(){
   document.getElementById('ordV').textContent=o.lab;
   const gap=p.trueMin-o.bound;
   document.getElementById('read').innerHTML=
-    `<div class="row" style="color:#fff">true minimum <b>${p.trueMin.toFixed(3)}</b></div>
+    `<div class="row" style="color:var(--ink)">true minimum <b>${p.trueMin.toFixed(3)}</b></div>
      <div class="row" style="color:var(--green)">this bound <b>${o.bound.toFixed(3)}</b></div>
      <div class="row" style="color:${gap<0.05?'var(--green)':'var(--gold)'}">gap <b>${gap.toFixed(3)}</b>${gap<0.05?'  ✓ tight':''}</div>`;
 }
@@ -190,8 +201,9 @@ document.getElementById('pMotz').onclick=()=>setPreset('motzkin');
 document.getElementById('ord').oninput=render;
 
 function start(){ if(window.Plotly){buildSurface();render();}
-  else{document.getElementById('plot').innerHTML='<p style="color:#9aa3b2;padding:20px">Loading 3-D library… (needs internet)</p>';setTimeout(start,400);} }
+  else{document.getElementById('plot').innerHTML='<p style="color:var(--muted);padding:20px">Loading 3-D library… (needs internet)</p>';setTimeout(start,400);} }
 start();
+window.addEventListener('themechange',()=>{if(window.Plotly&&SURF)render();});
 </script>
 </body>
 </html>

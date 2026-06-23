@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wrapping a shape in a polynomial</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
 <style>
   :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
         --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
   a{color:var(--blue);text-decoration:none}
   .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
   .top{padding:24px 0 6px;font-size:14px}
@@ -19,25 +20,27 @@
   .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
   @media(min-width:860px){.app{grid-template-columns:minmax(0,1fr) 290px}}
   .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
-  canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0c0f16;cursor:crosshair}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:var(--canvas-bg);cursor:crosshair}
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;height:fit-content}
   .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
   .seg{display:flex;flex-wrap:wrap;gap:6px}
-  .seg button{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);
+  .seg button{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--btn-bg);border:1px solid var(--line);
     border-radius:9px;padding:7px 10px;cursor:pointer}
-  .seg button.on{background:var(--blue);color:#0b1020;border-color:var(--blue)}
+  .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
   label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:14px}
   input[type=range]{width:100%;accent-color:var(--gold)}
   .row2{display:flex;gap:8px;margin-top:12px}
-  .row2 button{flex:1;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);border-radius:9px;padding:9px;cursor:pointer}
-  .read{background:#10131c;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px}
+  .row2 button{flex:1;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--btn-bg);border:1px solid var(--line);border-radius:9px;padding:9px;cursor:pointer}
+  .read{background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px}
   .read .r{display:flex;justify-content:space-between;margin:3px 0}
   .read b{font-variant-numeric:tabular-nums}
   .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
   .explain p{color:var(--muted)}.explain b{color:var(--ink)}
-  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
 </style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -152,17 +155,19 @@ function edgePt(e,a,b,c,d,x0,x1,y0,y1,L){
 const MS={1:[['L','T']],2:[['T','R']],3:[['L','R']],4:[['R','B']],5:[['L','T'],['R','B']],
   6:[['T','B']],7:[['L','B']],8:[['B','L']],9:[['T','B']],10:[['T','R'],['B','L']],
   11:[['R','B']],12:[['R','L']],13:[['T','R']],14:[['T','L']]};
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function fillLevelSet(L){ // shade the sub-level set {Λ ≤ L}
   const cw=cv.width/(fieldN-1), ch=cv.height/(fieldN-1);
-  ctx.fillStyle='rgba(126,224,192,0.14)';
+  ctx.save();ctx.globalAlpha=0.14;ctx.fillStyle=THEME('--green');
   for(let j=0;j<fieldN;j++)for(let i=0;i<fieldN;i++){
     if(field[j*fieldN+i]<=L){const x=dom[0]+(dom[1]-dom[0])*i/(fieldN-1),y=dom[0]+(dom[1]-dom[0])*j/(fieldN-1);
       ctx.fillRect(X(x)-cw/2,Y(y)-ch/2,cw+1,ch+1);}
   }
+  ctx.restore();
 }
 function drawContour(L){
   const wx=i=>dom[0]+(dom[1]-dom[0])*i/(fieldN-1);
-  ctx.strokeStyle='#7ee0c0';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+  ctx.strokeStyle=THEME('--green');ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
   for(let j=0;j<fieldN-1;j++)for(let i=0;i<fieldN-1;i++){
     const a=field[j*fieldN+i],b=field[j*fieldN+i+1],c=field[(j+1)*fieldN+i+1],d=field[(j+1)*fieldN+i];
     const idx=(a<L?1:0)|(b<L?2:0)|(c<L?4:0)|(d<L?8:0);const segs=MS[idx];if(!segs)continue;
@@ -173,13 +178,13 @@ function drawContour(L){
   ctx.stroke();
 }
 function draw(){
-  ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#0c0f16';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle=THEME('--canvas-bg');ctx.fillRect(0,0,cv.width,cv.height);
   // axes
-  ctx.strokeStyle='#1c2233';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),cv.height);ctx.moveTo(0,Y(0));ctx.lineTo(cv.width,Y(0));ctx.stroke();
+  ctx.strokeStyle=THEME('--axis');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),cv.height);ctx.moveTo(0,Y(0));ctx.lineTo(cv.width,Y(0));ctx.stroke();
   let tau=0;
   if(field){ tau=quantile(PTS._lam, tauVal); fillLevelSet(tau); drawContour(tau); }
   // points
-  ctx.fillStyle='#6ea8fe';for(const[px,py]of PTS){ctx.beginPath();ctx.arc(X(px),Y(py),2.1,0,7);ctx.fill();}
+  ctx.fillStyle=THEME('--blue');for(const[px,py]of PTS){ctx.beginPath();ctx.arc(X(px),Y(py),2.1,0,7);ctx.fill();}
   // readout
   const s=monoExp(deg).length;
   document.getElementById('read').innerHTML=
@@ -221,6 +226,7 @@ cv.addEventListener('touchend',()=>{painting=false;});
 
 /* ===================== go ===================== */
 tauVal=0.90; PTS=gen('ring'); recompute();
+window.addEventListener('themechange',draw);
 </script>
 </body>
 </html>

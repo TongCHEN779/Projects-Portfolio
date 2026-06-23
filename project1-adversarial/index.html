@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fooling MNIST — Standard vs Robust models</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
 <style>
   :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
         --blue:#6ea8fe;--red:#ff7b72;--green:#7ee0c0;--gold:#ffd479}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
   a{color:var(--blue);text-decoration:none}
   .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
   .top{padding:24px 0 6px;font-size:14px}
@@ -17,14 +18,14 @@
   .lede{color:var(--muted);max-width:740px}
   .bar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:18px 0}
   .bar .st{font-size:14px;color:var(--muted)}
-  .prog{height:8px;background:#222838;border-radius:6px;overflow:hidden;margin-top:8px;display:none}
+  .prog{height:8px;background:var(--btn-bg);border-radius:6px;overflow:hidden;margin-top:8px;display:none}
   .prog>i{display:block;height:100%;background:var(--blue);width:0}
   .acc{display:flex;gap:18px;margin-top:10px;font-size:13px;flex-wrap:wrap}
   .acc b{color:var(--ink)}
-  button{font:inherit;font-weight:600;color:var(--ink);background:#222838;border:1px solid var(--line);
+  button{font:inherit;font-weight:600;color:var(--ink);background:var(--btn-bg);border:1px solid var(--line);
          border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13px}
   button:hover{border-color:var(--blue)} button:disabled{opacity:.45;cursor:default}
-  button.act{background:var(--gold);color:#0b1020;border:none}
+  button.act{background:var(--gold);color:var(--btn-ink);border:none}
   .app{display:grid;grid-template-columns:1fr;gap:18px;margin:14px 0}
   @media(min-width:840px){.app{grid-template-columns:minmax(0,1fr) 300px}}
   .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
@@ -37,15 +38,15 @@
   input[type=range]{width:100%;accent-color:var(--gold)}
   .seg{display:flex;gap:6px;margin-top:6px}
   .seg button{flex:1}
-  .seg button.on{background:var(--blue);color:#0b1020;border-color:var(--blue)}
+  .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
   .row2{display:flex;gap:8px;margin-top:12px}
   .row2 button{flex:1}
   .models{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  .mcard{background:#10131c;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .mcard{background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:12px}
   .mcard h3{margin:0 0 8px;font-size:14px}
   .mcard h3 small{color:var(--muted);font-weight:400}
   .pr{font-size:12px;margin:6px 0 2px;display:flex;justify-content:space-between}
-  .pbar{height:7px;background:#222838;border-radius:6px;overflow:hidden}.pbar>i{display:block;height:100%}
+  .pbar{height:7px;background:var(--btn-bg);border-radius:6px;overflow:hidden}.pbar>i{display:block;height:100%}
   .flip{font-weight:700;font-size:13px;margin-top:8px;text-align:center;padding:6px;border-radius:7px}
   .flip.ok{background:rgba(126,224,192,.12);color:var(--green)} .flip.bad{background:rgba(255,123,114,.14);color:var(--red)}
   .extra{display:grid;grid-template-columns:1fr;gap:18px;margin:0 0 10px}
@@ -54,10 +55,12 @@
   #pad{width:112px;height:112px;background:#000;border-radius:8px;border:1px solid var(--line);touch-action:none;cursor:crosshair}
   .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
   .explain p{color:var(--muted)}.explain b{color:var(--ink)}
-  code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
   .cap{font-size:12px;color:var(--muted)}
-  canvas.chart{width:100%;height:auto;background:#0c0f16;border-radius:8px;border:1px solid var(--line)}
+  canvas.chart{width:100%;height:auto;background:var(--canvas-bg);border-radius:8px;border:1px solid var(--line)}
 </style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -493,26 +496,30 @@ document.getElementById('curveBtn').onclick=async()=>{
   }
   drawCurve(epsList,accS,accR);btn.textContent='Recompute robustness curve';btn.disabled=false;
 };
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let lastCurve=null;
 function drawCurve(xs,aS,aR){
+  lastCurve={xs,aS,aR};
   const c=document.getElementById('curve'),g=c.getContext('2d'),W=c.width,Hh=c.height,pad={l:42,r:12,t:14,b:30};
-  g.clearRect(0,0,W,Hh);g.fillStyle='#0c0f16';g.fillRect(0,0,W,Hh);
+  const RED=THEME('--red'),GREEN=THEME('--green'),MUTED=THEME('--muted');
+  g.clearRect(0,0,W,Hh);g.fillStyle=THEME('--canvas-bg');g.fillRect(0,0,W,Hh);
   const X=v=>pad.l+v/0.3*(W-pad.l-pad.r),Y=v=>Hh-pad.b-v*(Hh-pad.t-pad.b);
-  g.strokeStyle='#222838';for(let q=0;q<=4;q++){const y=Y(q/4);g.beginPath();g.moveTo(pad.l,y);g.lineTo(W-pad.r,y);g.stroke();
-    g.fillStyle='#9aa3b2';g.font='10px sans-serif';g.fillText((q*25)+'%',6,y+3);}
-  g.fillStyle='#9aa3b2';g.fillText('ε',W-18,Hh-10);
+  g.strokeStyle=THEME('--line');for(let q=0;q<=4;q++){const y=Y(q/4);g.beginPath();g.moveTo(pad.l,y);g.lineTo(W-pad.r,y);g.stroke();
+    g.fillStyle=MUTED;g.font='10px sans-serif';g.fillText((q*25)+'%',6,y+3);}
+  g.fillStyle=MUTED;g.fillText('ε',W-18,Hh-10);
   function plot(arr,col){g.strokeStyle=col;g.lineWidth=2.4;g.beginPath();
     xs.forEach((e,i)=>{const x=X(e),y=Y(arr[i]);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();
     xs.forEach((e,i)=>{g.fillStyle=col;g.beginPath();g.arc(X(e),Y(arr[i]),3,0,7);g.fill();});}
-  plot(aS,'#ff7b72');plot(aR,'#7ee0c0');
-  g.fillStyle='#ff7b72';g.fillText('standard',W-110,20);g.fillStyle='#7ee0c0';g.fillText('robust',W-110,34);
+  plot(aS,RED);plot(aR,GREEN);
+  g.fillStyle=RED;g.fillText('standard',W-110,20);g.fillStyle=GREEN;g.fillText('robust',W-110,34);
 }
 
 /* 2D decision slice — dynamic: cached regions + moving original/adversarial points */
 const CLASS_COL=['#6ea8fe','#ff7b72','#7ee0c0','#ffd479','#a78bfa','#f472b6','#fb923c','#4ade80','#22d3ee','#e879f9'];
 function invalidateSlice(){slice.ready=false;
   ['sliceS','sliceR'].forEach(id=>{const c=document.getElementById(id);if(!c)return;const g=c.getContext('2d');
-    g.fillStyle='#0c0f16';g.fillRect(0,0,c.width,c.height);
-    g.fillStyle='#9aa3b2';g.font='10px sans-serif';g.textAlign='center';g.fillText('press Compute',c.width/2,c.height/2);});}
+    g.fillStyle=THEME('--canvas-bg');g.fillRect(0,0,c.width,c.height);
+    g.fillStyle=THEME('--muted');g.font='10px sans-serif';g.textAlign='center';g.fillText('press Compute',c.width/2,c.height/2);});}
 function buildBg(m,dir1,dir2,G,R){const map=new Uint8Array(G*G);const tmp=new Float32Array(D);
   for(let iy=0;iy<G;iy++)for(let ix=0;ix<G;ix++){const a=(ix/(G-1)*2-1)*R,b=(iy/(G-1)*2-1)*R;
     for(let d=0;d<D;d++)tmp[d]=clip01(curX[d]+a*dir1[d]+b*dir2[d]);map[iy*G+ix]=predict(m,tmp).cls;}
@@ -556,6 +563,11 @@ document.getElementById('sliceBtn').onclick=async()=>{
 /* go */
 updateEpsLabel();
 loadMNIST();
+window.addEventListener('themechange',()=>{
+  if(lastCurve)drawCurve(lastCurve.xs,lastCurve.aS,lastCurve.aR);
+  if(slice.ready&&trained&&curX)drawSlice(makeAdv(modelS,curX,curY));
+  else if(!slice.ready)invalidateSlice();
+});
 </script>
 </body>
 </html>

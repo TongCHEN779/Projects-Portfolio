@@ -1,0 +1,20 @@
+/* Shared light/dark theme — link AFTER each page's inline <style>.
+   Pages define the dark base vars (--bg,--panel,--ink,--muted,--line,--blue,...).
+   Here we add structural vars + a light override + the toggle-button styles. */
+:root{
+  --glow:#1b2030; --btn-bg:#222838; --inset:#10131c; --canvas-bg:#0c0f16;
+  --btn-ink:#0b1020; --hover:#1d2130; --axis:#1c2233; --speckle:255,255,255;
+}
+:root[data-theme="light"]{
+  --bg:#f6f7fb; --panel:#ffffff; --ink:#1b2030; --muted:#5a6473; --line:#dfe3ec;
+  --blue:#2f6fe0; --green:#0f9d77; --gold:#b8860b; --red:#d64545; --purple:#7c5cf0;
+  --glow:#e4eafa; --btn-bg:#eef1f7; --inset:#eef1f7; --canvas-bg:#ffffff;
+  --btn-ink:#ffffff; --hover:#e3e8f2; --axis:#d7dde9; --speckle:30,40,70;
+}
+body{transition:background-color .25s ease,color .25s ease}
+.theme-toggle{position:fixed;top:16px;right:16px;z-index:50;display:inline-flex;align-items:center;
+  gap:7px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  cursor:pointer;transition:border-color .15s ease,transform .15s ease}
+.theme-toggle:hover{border-color:var(--blue);transform:translateY(-1px)}
+.theme-toggle .icon{font-size:15px;line-height:1}

@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HomeMap — one map for every Copenhagen listing</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
         --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-       background:radial-gradient(1000px 500px at 80% -10%,#1b2030,var(--bg) 55%);color:var(--ink);line-height:1.55}
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
   a{color:var(--blue);text-decoration:none}
   .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
   .top{padding:24px 0 6px;font-size:14px}
   h1{font-size:28px;margin:6px 0 6px;letter-spacing:-0.4px}
   .lede{color:var(--muted);max-width:780px;font-size:15px}
-  .story{max-width:780px;color:#cdd3de;margin:14px 0 6px;font-size:15px}
+  .story{max-width:780px;color:var(--ink);margin:14px 0 6px;font-size:15px}
   .story b{color:var(--ink)}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
   .kpi{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px}
@@ -28,21 +29,21 @@
   .controls h2:first-child{margin-top:0}
   label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:8px}
   input[type=range]{width:100%;accent-color:var(--blue)}
-  select,.txt{width:100%;background:#10131c;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13px;margin-top:4px}
-  .sug{margin-top:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:none;background:#10131c}
+  select,.txt{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13px;margin-top:4px}
+  .sug{margin-top:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:none;background:var(--inset)}
   .sug.show{display:block}
   .sug .item{padding:7px 9px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line)}
   .sug .item:last-child{border-bottom:none}
-  .sug .item:hover{background:#1d2130;color:var(--blue)}
+  .sug .item:hover{background:var(--hover);color:var(--blue)}
   .chips{display:flex;flex-wrap:wrap;gap:5px}
   .chip{font-size:11.5px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);cursor:pointer;color:var(--muted);user-select:none}
-  .chip.on{color:#0b1020;font-weight:600;background:var(--blue);border-color:var(--blue)}
+  .chip.on{color:var(--btn-ink);font-weight:600;background:var(--blue);border-color:var(--blue)}
   .toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin-top:10px;cursor:pointer}
   .toggle input{accent-color:var(--green);width:16px;height:16px}
   #map{height:560px;border-radius:16px;border:1px solid var(--line);z-index:1}
   .listcol{max-height:560px;overflow:auto}
   .listcol h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
-  .card{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;cursor:pointer;background:#10131c}
+  .card{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;cursor:pointer;background:var(--inset)}
   .card:hover{border-color:var(--blue)}
   .card .p{font-weight:700;font-size:15px}
   .card .meta{font-size:12px;color:var(--muted)}
@@ -56,10 +57,12 @@
   .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px}
   .method{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin:18px 0 50px;color:var(--muted);font-size:14px}
   .method b{color:var(--ink)}
-  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#171a23;color:#e7e9ee;border:1px solid #2a2f3d}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
   .leaflet-popup-content{font-size:13px}
-  .leaflet-popup-content a{color:#6ea8fe}
+  .leaflet-popup-content a{color:var(--blue)}
 </style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -136,7 +139,7 @@
 </div>
 
 <style>
-  .detail{background:#10131c;border:1px solid var(--blue);border-radius:12px;padding:14px;margin-bottom:12px}
+  .detail{background:var(--inset);border:1px solid var(--blue);border-radius:12px;padding:14px;margin-bottom:12px}
   .dhead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
   .daddr{font-weight:700;font-size:15px}
   .dsub{font-size:12px;color:var(--muted);margin-top:2px}
@@ -149,7 +152,7 @@
   .dlinks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .srcbtn{font-size:12px;font-weight:600;color:var(--blue);border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:var(--panel);cursor:pointer}
   .srcbtn:hover{border-color:var(--blue)}
-  .card.sel{border-color:var(--blue);background:#161b27}
+  .card.sel{border-color:var(--blue);background:var(--hover)}
 </style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -237,8 +240,21 @@ let state={maxPrice:35000,minSize:0,minRooms:1,type:'all',merge:true,colorBy:'va
            workCoord:[55.6759,12.5655], workName:'City centre (Rådhuspladsen)'};
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const isLight=()=>document.documentElement.getAttribute('data-theme')==='light';
+const strokeCol=()=>THEME('--canvas-bg');
 const map=L.map('map',{scrollWheelZoom:true}).setView([55.682,12.56],12.4);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const TILES={
+  dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  light:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+};
+let tileLayer=null;
+function setTiles(){
+  if(tileLayer)map.removeLayer(tileLayer);
+  tileLayer=L.tileLayer(isLight()?TILES.light:TILES.dark,
+    {maxZoom:19,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
+}
+setTiles();
 let markers=[];
 
 /* work marker (persists across renders) */
@@ -311,12 +327,12 @@ function updateLegend(){
 let selMarker=null, selCard=null;
 function deselect(){
   const d=document.getElementById('detail'); if(d)d.style.display='none';
-  if(selMarker){try{selMarker.setStyle({weight:1,color:'#0c0f16'});selMarker.setRadius(7);}catch(e){}}
+  if(selMarker){try{selMarker.setStyle({weight:1,color:strokeCol()});selMarker.setRadius(7);}catch(e){}}
   if(selCard)selCard.classList.remove('sel');
   selMarker=null;selCard=null;
 }
 function selectListing(h,m,card){
-  if(selMarker&&selMarker!==m){try{selMarker.setStyle({weight:1,color:'#0c0f16'});selMarker.setRadius(7);}catch(e){}}
+  if(selMarker&&selMarker!==m){try{selMarker.setStyle({weight:1,color:strokeCol()});selMarker.setRadius(7);}catch(e){}}
   if(selCard&&selCard!==card)selCard.classList.remove('sel');
   selMarker=m;selCard=card;
   if(m){m.setStyle({weight:2.6,color:'#ffffff'});m.setRadius(10);if(m.bringToFront)m.bringToFront();}
@@ -371,7 +387,7 @@ function render(){
   items.sort((a,b)=>valueRatio(a)-valueRatio(b));
   items.forEach(h=>{
     const col=markerColor(h);
-    const m=L.circleMarker([h.lat,h.lng],{radius:7,color:'#0c0f16',weight:1,fillColor:col,fillOpacity:0.9}).addTo(map);
+    const m=L.circleMarker([h.lat,h.lng],{radius:7,color:strokeCol(),weight:1,fillColor:col,fillOpacity:0.9}).addTo(map);
     const [, bcls, btxt]=valueBadge(valueRatio(h));
     const srcLine=(h.sources&&h.sources.length>1)?`<b>On ${h.sources.length} platforms:</b> ${h.sources.join(', ')}`:`Source: ${h.sources?h.sources[0]:h.src}`;
     markers.push(m);
@@ -387,6 +403,7 @@ function render(){
   updateLegend();
 }
 setWork(state.workCoord, state.workName);
+window.addEventListener('themechange',()=>{setTiles();render();});
 </script>
 </body>
 </html>
