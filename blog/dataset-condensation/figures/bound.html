@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Covering radius and the loss bound</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #wrap{display:flex;flex-direction:column}
+  canvas{display:block;width:100%;height:360px}
+  #panel{flex:0 0 auto;padding:10px 16px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px}
+  .row label{min-width:150px;color:#444}
+  input[type=range]{flex:1}
+  .val{font-family:monospace;color:#c0392b;min-width:44px;text-align:right}
+  #readout{font-family:monospace;margin-top:6px;color:#333}
+  .k{color:#c0392b;font-weight:bold}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="panel">
+    <div class="row"><label>Covering radius &epsilon;</label><input id="eps" type="range" min="0.15" max="1.6" step="0.01" value="0.6"><span class="val" id="ev">0.60</span></div>
+    <div id="readout"></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const epsEl=document.getElementById('eps'),ev=document.getElementById('ev'),readout=document.getElementById('readout');
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(11);
+function randn(){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const centersTrue=[[-1.1,-0.4],[1.0,0.5],[0.1,-1.0]];
+const N=150,pts=[];
+for(let i=0;i<N;i++){const c=centersTrue[i%3];pts.push({x:c[0]+0.45*randn(),y:c[1]+0.45*randn()});}
+const L=1.0;
+function greedyCover(eps){
+  const covered=new Array(N).fill(false),cen=[];
+  for(let i=0;i<N;i++){
+    if(covered[i])continue;cen.push(i);
+    for(let j=0;j<N;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y;if(Math.sqrt(dx*dx+dy*dy)<=eps)covered[j]=true;}
+  }
+  return cen;
+}
+let W,H,ox,oy,scale;
+function fit(){const b=cv.getBoundingClientRect();cv.width=b.width;cv.height=b.height;W=cv.width;H=cv.height;
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+  const pad=50;scale=Math.min((W-2*pad)/(xmax-xmin),(H-2*pad)/(ymax-ymin));
+  ox=(W-(xmax+xmin)*scale)/2;oy=(H+(ymax+ymin)*scale)/2;
+}
+function cx(x){return ox+x*scale;}function cy(y){return oy-y*scale;}
+function draw(){
+  const eps=parseFloat(epsEl.value);ev.textContent=eps.toFixed(2);
+  const cen=greedyCover(eps);
+  ctx.clearRect(0,0,W,H);
+  // balls
+  for(const idx of cen){ctx.beginPath();ctx.fillStyle="rgba(52,152,219,0.10)";ctx.strokeStyle="rgba(52,152,219,0.45)";ctx.lineWidth=1;ctx.arc(cx(pts[idx].x),cy(pts[idx].y),eps*scale,0,7);ctx.fill();ctx.stroke();}
+  // points
+  for(let i=0;i<N;i++){ctx.beginPath();ctx.fillStyle="#888";ctx.globalAlpha=0.7;ctx.arc(cx(pts[i].x),cy(pts[i].y),2.6,0,7);ctx.fill();}
+  ctx.globalAlpha=1;
+  // centers
+  for(const idx of cen){ctx.beginPath();ctx.fillStyle="#c0392b";ctx.strokeStyle="#fff";ctx.lineWidth=1.5;ctx.arc(cx(pts[idx].x),cy(pts[idx].y),5,0,7);ctx.fill();ctx.stroke();}
+  readout.innerHTML=`centers needed <span class="k">M = ${cen.length}</span> &nbsp;|&nbsp; loss-gap bound &nbsp;|E<sub>&mu;</sub>f &minus; E<sub>&omega;</sub>f| &le; L&middot;&epsilon; = <span class="k">${(L*eps).toFixed(2)}</span> &nbsp;(L=1) &nbsp;|&nbsp; W&#8321; &le; &epsilon;. Smaller &epsilon; tightens the bound but needs more centers.`;
+}
+epsEl.oninput=draw;
+window.addEventListener('resize',()=>{fit();draw();});
+fit();draw();
+</script>
+</body>
+</html>

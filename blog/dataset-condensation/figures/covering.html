@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Density-aware covering</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #wrap{display:flex;flex-direction:column;box-sizing:border-box}
+  canvas{display:block;width:100%;height:400px}
+  #panel{flex:0 0 auto;padding:10px 16px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px;margin:4px 0;flex-wrap:wrap}
+  .row label{min-width:150px;color:#444}
+  input[type=range]{flex:1;min-width:120px}
+  .val{font-family:monospace;color:#c0392b;min-width:34px;text-align:right}
+  #readout{font-family:monospace;color:#333;margin-top:4px}
+  .k{color:#c0392b;font-weight:bold}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="panel">
+    <div class="row"><label>Density strength &tau;</label><input id="tau" type="range" min="0" max="1.5" step="0.05" value="0.7"><span class="val" id="tv">0.70</span></div>
+    <div class="row"><label>Number of centers M</label><input id="M" type="range" min="4" max="40" step="1" value="20"><span class="val" id="mv">20</span></div>
+    <div id="readout"></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const tauEl=document.getElementById('tau'),mEl=document.getElementById('M');
+const tv=document.getElementById('tv'),mv=document.getElementById('mv'),readout=document.getElementById('readout');
+
+// seeded RNG
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(7);
+function randn(){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+// dataset: dense cluster + sparse spread (density varies strongly)
+const N=420, pts=[];
+for(let i=0;i<N;i++){
+  if(rng()<0.68){pts.push({x:-1.0+0.24*randn(), y:-0.25+0.24*randn()});}
+  else{pts.push({x:1.0+0.72*randn(), y:0.35+0.62*randn()});}
+}
+// kNN density estimate (k-th neighbour distance), normalized to [0,1]
+const K=12, dens=new Array(N);
+for(let i=0;i<N;i++){
+  const ds=[];
+  for(let j=0;j<N;j++){if(j!==i){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y;ds.push(dx*dx+dy*dy);}}
+  ds.sort((a,b)=>a-b);
+  const rk=Math.sqrt(ds[K-1])+1e-6;
+  dens[i]=1/(rk*rk); // ~ density in 2D
+}
+const dmax=Math.max(...dens);
+for(let i=0;i<N;i++)dens[i]/=dmax; // in (0,1], dense->1
+
+function eucl(i,j){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y;return Math.sqrt(dx*dx+dy*dy);}
+// reweighted distance: dense pairs inflated (p in (0,1], so ^tau keeps dense near 1, shrinks sparse)
+function ed(i,j,tau){return eucl(i,j)*Math.pow(dens[i]*dens[j], tau);}
+
+// farthest-point selection under reweighted distance, start at densest point
+function selectCenters(tau,M){
+  let start=0;for(let i=1;i<N;i++)if(dens[i]>dens[start])start=i;
+  const chosen=[start];
+  const mind=new Array(N);
+  for(let i=0;i<N;i++)mind[i]=ed(i,start,tau);
+  while(chosen.length<M){
+    let best=-1,bv=-1;
+    for(let i=0;i<N;i++){if(mind[i]>bv){bv=mind[i];best=i;}}
+    chosen.push(best);
+    for(let i=0;i<N;i++){const d=ed(i,best,tau);if(d<mind[i])mind[i]=d;}
+  }
+  return chosen;
+}
+
+function lerpColor(t){ // blue (sparse) -> red (dense)
+  const r=Math.round(40+t*(200-40)), g=Math.round(90+t*(60-90)), b=Math.round(200+t*(70-200));
+  return `rgb(${r},${g},${b})`;
+}
+
+let W,H,ox,oy,scale;
+function fit(){const b=cv.getBoundingClientRect();cv.width=b.width;cv.height=b.height;W=cv.width;H=cv.height;
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+  const pad=40;scale=Math.min((W-2*pad)/(xmax-xmin),(H-2*pad)/(ymax-ymin));
+  ox=pad-xmin*scale+ (W-2*pad-(xmax-xmin)*scale)/2; oy=H-pad+ymin*scale-(H-2*pad-(ymax-ymin)*scale)/2;
+}
+function cx(x){return ox+x*scale;} function cy(y){return oy-y*scale;}
+
+function draw(){
+  const tau=parseFloat(tauEl.value),M=parseInt(mEl.value);
+  tv.textContent=tau.toFixed(2);mv.textContent=M;
+  const centers=selectCenters(tau,M);
+  ctx.clearRect(0,0,W,H);
+  // points
+  for(let i=0;i<N;i++){ctx.beginPath();ctx.fillStyle=lerpColor(dens[i]);ctx.globalAlpha=0.55;ctx.arc(cx(pts[i].x),cy(pts[i].y),3,0,7);ctx.fill();}
+  ctx.globalAlpha=1;
+  // centers
+  let inDense=0;
+  for(const idx of centers){
+    if(dens[idx]>0.5)inDense++;
+    ctx.beginPath();ctx.fillStyle="#111";ctx.strokeStyle="#fff";ctx.lineWidth=2;
+    ctx.arc(cx(pts[idx].x),cy(pts[idx].y),6,0,7);ctx.fill();ctx.stroke();
+  }
+  const pct=Math.round(100*inDense/centers.length);
+  readout.innerHTML=`<span class="k">${pct}%</span> of centers fall in the high-density region &nbsp;|&nbsp; &tau;=0 is Euclidean k-center; larger &tau; pulls centers into the dense (red) cluster.`;
+}
+tauEl.oninput=draw;mEl.oninput=draw;
+window.addEventListener('resize',()=>{fit();draw();});
+fit();draw();
+</script>
+</body>
+</html>

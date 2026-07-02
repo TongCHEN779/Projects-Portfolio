@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dataset Condensation by Manifold Learning</title>
+<meta name="description" content="A covering view of coreset selection. We tie coreset quality to the covering radius through a Wasserstein bound, then make covering manifold-aware by flattening the data to a uniform cube and by reweighting distances with local density. Interactive figures let the reader explore each idea.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --accent:#2f6fe0;
+    --bg:#ffffff; --soft:#f6f7f9;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased;font-size:17px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .backbar{max-width:1100px;margin:0 auto;padding:18px 24px;font-size:14px}
+  header.hero{border-bottom:1px solid var(--line);background:var(--soft)}
+  .hero .inner{max-width:760px;margin:0 auto;padding:46px 24px 34px}
+  .kicker{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:34px;line-height:1.2;margin:12px 0 14px;letter-spacing:-0.4px}
+  .dek{font-size:18px;color:var(--muted);margin:0}
+  .byline{margin-top:20px;font-size:14px;color:var(--muted);display:flex;gap:26px;flex-wrap:wrap}
+  .byline b{color:var(--ink);font-weight:600}
+  .layout{max-width:1100px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:1000px){.layout{grid-template-columns:220px minmax(0,760px);gap:40px;justify-content:center}}
+  nav.toc{font-size:14px}
+  @media(min-width:1000px){nav.toc{position:sticky;top:24px;align-self:start;padding-top:44px}}
+  nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border:none;margin:0 0 10px;padding:0}
+  nav.toc ul{list-style:none;margin:0;padding:0}
+  nav.toc li{margin:6px 0}
+  nav.toc a{color:var(--muted)}
+  nav.toc a:hover{color:var(--accent)}
+  article{padding:44px 0 20px;min-width:0}
+  article h2{font-size:24px;margin:44px 0 14px;padding-top:14px;border-top:1px solid var(--line);letter-spacing:-0.3px}
+  article h2:first-child{border-top:none;padding-top:0;margin-top:0}
+  p{margin:0 0 18px}
+  sup.cite{font-size:12px;color:var(--accent);font-weight:600;padding-left:1px}
+  sup.cite a{color:var(--accent)}
+  blockquote{margin:22px 0;padding:14px 20px;background:var(--soft);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0}
+  blockquote p{margin:6px 0}
+  figure{margin:26px 0}
+  figcaption{font-size:14px;color:var(--muted);text-align:center;margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+  th{background:var(--soft)}
+  td:first-child,th:first-child{text-align:left}
+  code{background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:14px}
+  .refs{max-width:760px;margin:0 auto;padding:10px 24px 70px}
+  .refs h2{font-size:20px;border-top:1px solid var(--line);padding-top:22px}
+  .refs ol{list-style:none;margin:0;padding:0;font-size:14px;color:var(--muted)}
+  .refs li{margin:9px 0;line-height:1.5}
+  .refs .rnum{color:var(--accent);font-weight:600;margin-right:6px}
+  .refs em{color:var(--ink);font-style:italic}
+  /* wide figures break out of the text column on large screens */
+  @media(min-width:1000px){figure:has(iframe){width:calc(100% + 120px);margin-left:-60px}}
+</style>
+</head>
+<body>
+  <div class="backbar"><a href="../../index.html">&larr; Back to portfolio</a></div>
+  <header class="hero">
+    <div class="inner">
+      <div class="kicker">Interactive Article &middot; Dataset Condensation</div>
+      <h1>Dataset Condensation by Manifold Learning</h1>
+      <p class="dek">A covering view of coreset selection. We tie coreset quality to the covering radius through a Wasserstein bound, then make covering manifold-aware by flattening the data to a uniform cube and by reweighting distances with local density. Interactive figures let the reader explore each idea.</p>
+      <div class="byline">
+        <span><b>Tong Chen</b><br>University of Copenhagen</span>
+        <span><b>Raghavendra Selvan</b><br>University of Copenhagen</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#related-work">Related Work</a></li>
+<li><a href="#coreset-selection-by-covering">Coreset Selection by Covering</a></li>
+<li><a href="#flattening-the-manifold">Flattening the Manifold</a></li>
+<li><a href="#density-aware-covering">Density-Aware Covering</a></li>
+<li><a href="#experiments">Experiments</a></li>
+<li><a href="#discussion">Discussion</a></li>
+<li><a href="#conclusion">Conclusion</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+    <article>
+<h2 id="introduction">Introduction</h2>
+<p>Training modern models on web-scale datasets is expensive, and much of the data is redundant. <em>Dataset condensation</em> (also called dataset distillation) asks for a small set on which a model trained from scratch attains accuracy close to training on the full data. Two broad families exist: <em>synthetic</em> methods that optimize a handful of learnable images to match the gradients, feature distributions, or training trajectories of the full data; and <em>selection</em> (coreset) methods that pick a representative subset of real examples. This paper studies the selection family through the lens of <em>covering</em>.</p>
+<p>A coreset that $\varepsilon$-covers the data — every point lies within $\varepsilon$ of some selected center — comes with a simple guarantee: for any Lipschitz loss, the discrepancy between training on the full data and on the covering is at most $\mathrm{Lip}(f)\,\varepsilon$. The guarantee is only as good as the covering radius $\varepsilon$, which in turn depends entirely on the distance used to define the cover. Standard covering uses Euclidean distance in pixel or feature space, which ignores two things that matter: the <em>density</em> of the data (uniform-radius balls over-represent sparse regions and waste budget) and the <em>curvature</em> of the manifold on which the data lives (Euclidean chords cut across the manifold). At small budgets, where $\varepsilon$ is necessarily large, both effects degrade accuracy noticeably.</p>
+<p>We pursue two complementary remedies. First, we <em>flatten</em> the manifold: a (mixture-)VAE maps the data to a near-Gaussian latent space, and a coordinate-wise CDF (single Gaussian) or Rosenblatt transform (mixture) maps that to a uniform distribution on the cube, where low-discrepancy covering is near-optimal. Second, we make covering <em>density-aware</em> by reweighting the pairwise distance with the local density, so that representatives are allocated in proportion to mass; we show this is a discrete conformal change of metric whose shortest-path closure is a genuine density-aware geodesic. We additionally use a Gaussian-mixture VAE (GMVAE) to learn several <em>local</em> charts of the manifold rather than a single global chart, and to generate synthetic centers by decoding the mixture means.</p>
+<p><strong>Contributions.</strong> (i) We give a Wasserstein / Kantorovich–Rubinstein bound that ties coreset quality to the covering radius and the choice of distance. (ii) We propose two manifold-aware remedies: flatten-to-uniform via CDF and Rosenblatt transforms, and density-aware conformal covering. (iii) We benchmark a family of covering variants on MNIST, Fashion-MNIST, CIFAR-10 and CIFAR-100 across budgets of $1/10/50$ images per class. Geodesic distances are computed with <a href="https://github.com/MachineLearningLifeScience/stochman">stochman</a>.</p>
+<h2 id="related-work">Related Work</h2>
+<p><strong>Dataset condensation and distillation.</strong> Synthetic-data approaches learn a compact set by matching gradients, feature or output distributions, or training trajectories of a model trained on the full dataset <sup class="cite">[<a href="#ref-wang2018dataset">1</a>]</sup><sup class="cite">[<a href="#ref-zhao2021gradient">2</a>]</sup><sup class="cite">[<a href="#ref-zhao2023dm">3</a>]</sup>. These methods optimize pixels and can reach high accuracy, but the resulting images are not real samples, the optimization is expensive, and the learned set transfers unevenly across architectures. We instead stay in the <em>selection</em> regime: our representatives are genuine data points chosen to cover the dataset, which keeps the procedure cheap, interpretable, and architecture-agnostic, at the cost of the covering radius $\varepsilon$ that our bound shows to be the controlling quantity.</p>
+<p><strong>Coreset and covering-based selection.</strong> Classical coreset and active-learning methods select real points via $k$-center covering, herding, or submodular objectives <sup class="cite">[<a href="#ref-sener2018coreset">4</a>]</sup><sup class="cite">[<a href="#ref-welling2009herding">5</a>]</sup>. Our base method, MCS, is a $k$-center cover and inherits the same weakness: the cover is defined by Euclidean distance, which is blind to data density and manifold curvature. This paper targets exactly this limitation by changing the distance (density reweighting, geodesics) or the space (flattening to a uniform cube) in which the cover is computed.</p>
+<p><strong>Geometry of generative models.</strong> The latent space of a VAE carries a pullback Riemannian metric whose geodesics respect the data manifold <sup class="cite">[<a href="#ref-arvanitidis2018latent">6</a>]</sup>, and mixture priors yield several local charts rather than a single global one <sup class="cite">[<a href="#ref-dilokthanakul2016gmvae">7</a>]</sup>. We use this view for both the flattening map and the density-reweighted distance.</p>
+<p><strong>Optimal transport and the probability integral transform.</strong> Our loss bound is a $1$-Wasserstein / Kantorovich–Rubinstein argument <sup class="cite">[<a href="#ref-peyre2019computational">8</a>]</sup>, which connects covering-based selection to the distribution-matching objectives used by synthetic condensation. The flattening step relies on the probability integral transform and, for mixtures, the Rosenblatt transform <sup class="cite">[<a href="#ref-rosenblatt1952">9</a>]</sup>.</p>
+<h2 id="coreset-selection-by-covering">Coreset Selection by Covering</h2>
+<p><strong>Minimum Covering Selection (MCS).</strong> MCS chooses a size-$M$ subset $\mathcal{S} \subseteq \mathcal{T}$ so as to minimize the covering radius $\varepsilon$ — the smallest $\varepsilon$ for which the $\varepsilon$-balls centered at $\mathcal{S}$ cover $\mathcal{T}$ (equivalently, a $k$-center cover under distance $d$). The variants we study differ only in the distance $d$: Euclidean, a PCA or random projection of the features, a density-reweighted distance, and quasi-random (Sobol) initialization.</p>
+<p>Consider a dataset $\mathcal{T} = \{\mathbf{x}_i\}_{i=1}^N$ and a subset $\mathcal{S} = \{\mathbf{x}_{i(j)}\}_{j=1}^M$. Let $\varepsilon$ be the minimum radius such that $\mathcal{S}$ covers $\mathcal{T}$, and assume the per-sample loss $f$ is $L$-Lipschitz. The empirical loss over $\mathcal{T}$ is</p>
+<p>$$
+L(f,\mathcal{T}) := \frac{1}{N}\sum_{i=1}^N f(\mathbf{x}_i) = \mathbb{E}_{\mathbf{x}\sim\hat{\mu}}[f(\mathbf{x})], \qquad \hat{\mu} = \frac{1}{N}\sum_{i=1}^N \delta_{\mathbf{x}_i}.
+$$</p>
+<p>Assigning each data point to a covering ball $I_j$ and letting $p_i$ count the balls containing $\mathbf{x}_i$, one can move all mass in a ball to its center $\tilde{\mathbf{x}}_j = \mathbf{x}_{i(j)}$ with weight $\lambda_j = \sum_{i\in I_j} 1/p_i$, giving $\hat{\omega} = \frac{1}{N}\sum_{j=1}^M \lambda_j \delta_{\tilde{\mathbf{x}}_j}$. The two extremes of picking the ball's maximum- or minimum-loss point bracket the loss, and the cleanest statement is the following.</p>
+<blockquote>
+<p><strong>Lemma (covering controls loss via $W_1$).</strong> For $L$-Lipschitz $f$,
+$$ |\mathbb{E}_{\hat{\mu}}[f] - \mathbb{E}_{\hat{\omega}}[f]| \;\le\; L\cdot W_1(\hat{\mu},\hat{\omega}) \;\le\; L\cdot\varepsilon, $$
+where $W_1$ is the $1$-Wasserstein distance under $d$.</p>
+</blockquote>
+<p><em>Proof sketch.</em> The first inequality is Kantorovich–Rubinstein duality. For the second, route the mass at each $\mathbf{x}_i$ to its center $\mathbf{x}_{i(j)}$; every unit of mass travels $d(\mathbf{x}_i,\mathbf{x}_{i(j)})\le\varepsilon$, so $W_1(\hat{\mu},\hat{\omega})\le\varepsilon$. $\square$</p>
+<p>The bound scales with $\varepsilon$, which is large when the budget is small. Everything that follows is an attempt to make $\varepsilon$ — measured in a distance that respects the data — smaller. The figure below lets you vary $\varepsilon$ and watch the trade-off between the number of centers $M$ and the bound $L\cdot\varepsilon$.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/bound.html" width="100%" height="520"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Covering radius and the loss bound"></iframe>
+  <figcaption>Drag $\varepsilon$: smaller radius tightens the bound $|\mathbb{E}_\mu f - \mathbb{E}_\omega f|\le L\varepsilon$ but needs more centers $M$.</figcaption>
+</figure>
+
+<h2 id="flattening-the-manifold">Flattening the Manifold</h2>
+<p>A smaller covering radius, measured in a distance that respects the data, yields a tighter bound. One way to get there is to map the data to a uniform distribution on a cube, where a uniform low-discrepancy cover is near-optimal.</p>
+<p><strong>Gaussian to uniform.</strong> Let $\mathbf{x}\sim\mathcal{N}(\mu,\Sigma)$ with diagonal $\Sigma=\mathrm{diag}(\sigma_1,\dots,\sigma_n)$, so the coordinates are independent. If $F$ is the CDF of a distribution and $x\sim p$, then $F(x)\sim\mathcal{U}[0,1]$. Applying the per-coordinate Gaussian CDF $f_i(t)=\Phi\!\big(\tfrac{t-\mu_i}{\sigma_i}\big)$ maps diagonal-Gaussian samples to uniform samples via $F=[f_i]_{i=1}^n$. A VAE with a Gaussian prior gives us such a map: $F\circ g(\mathbf{x})\sim\mathcal{U}[0,1]^m$ in latent space. The interactive figure shows a Gaussian <em>mixture</em> being flattened to uniform by its CDF.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/flatten.html" width="100%" height="520"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Flatten to uniform"></iframe>
+  <figcaption>Press <em>Play</em>: applying the CDF $F$ pushes a bimodal mixture density (left) to a flat uniform one (right).</figcaption>
+</figure>
+
+<p><strong>Mixture Gaussian to uniform — a subtlety.</strong> For a mixture $p(\mathbf{x})=\sum_{j=1}^N \lambda_j \prod_{i=1}^n p(x_i;\mu_{ij},\sigma_{ij})$, the marginal of each coordinate is a univariate mixture with CDF $f_i(t)=\sum_j \lambda_j f_{ij}(t)$, so $f_i(x_i)\sim\mathcal{U}[0,1]$ <em>marginally</em>. But the mixture does <strong>not</strong> factorize across coordinates — the component index $j$ is shared — so the coordinate-wise map $F=[f_i]$ makes each coordinate uniform marginally while the joint $F(\mathbf{x})$ follows a non-trivial copula, <strong>not</strong> $\mathcal{U}[0,1]^n$. To recover <em>joint</em> uniformity we use the Rosenblatt transform, the sequence of conditional CDFs</p>
+<p>$$
+u_1 = F_1(x_1), \qquad u_k = F_{k\mid 1:k-1}(x_k \mid x_1,\dots,x_{k-1}),
+$$</p>
+<p>which is uniform on the cube for any joint distribution. For the diagonal mixture each conditional is again a univariate mixture whose weights are the posterior responsibilities $w_j \propto \lambda_j \prod_{l<k} p(x_l;\mu_{lj},\sigma_{lj})$, so every $F_{k\mid 1:k-1}$ is available in closed form.</p>
+<p>From a Riemannian viewpoint a VAE learns a single global chart of the data manifold; since not every manifold admits a global chart, a GMVAE with a mixture prior instead learns several <em>local</em> charts and glues them together.</p>
+<h2 id="density-aware-covering">Density-Aware Covering</h2>
+<p>An $\varepsilon$-coreset is fully characterized by the pairwise distances $d_{ij}=d(\mathbf{x}_i,\mathbf{x}_j)$. Associate each point with a density $p_i>0$ and define the reweighted <em>dissimilarity</em> $\tilde{d}_{ij} := d_{ij}\,p_i p_j$. It is symmetric, non-negative, and zero iff $i=j$, but it is <strong>not</strong> a metric: the triangle inequality $d_{ik}p_ip_k \le d_{ij}p_ip_j + d_{jk}p_jp_k$ fails whenever an intermediate point has small density $p_j$ (the right-hand side $\to 0$ as $p_j\to 0$). This is harmless here — the finite $\varepsilon$-covering only asks that every point lie within $\varepsilon$ of some center and never uses the triangle inequality. Intuitively, inflating distances in dense regions makes their neighbourhoods effectively sparser and draws more covering centers into them. In the experiments the symmetric option is reported as <code>-metric</code> and the asymmetric option $d_{ij}p_j$ as <code>-cover</code>; <code>-sqrt</code> replaces $p_ip_j$ with $\sqrt{p_ip_j}$.</p>
+<p>The figure lets you increase the density strength $\tau$ and watch the $k$-center cover migrate from a Euclidean spread ($\tau=0$) into the dense cluster.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/covering.html" width="100%" height="540"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Density-aware covering"></iframe>
+  <figcaption>At $\tau=0$ the cover is Euclidean $k$-center; larger $\tau$ pulls centers into the dense (red) region.</figcaption>
+</figure>
+
+<p><strong>A genuine density-aware metric.</strong> If a true metric is wanted, treat the density as a <em>conformal factor</em> and take shortest paths. A conformal metric $\mathrm{d}s=\rho(\mathbf{x})\,\|\mathrm{d}\mathbf{x}\|$ induces the geodesic distance $D(\mathbf{x},\mathbf{y})=\inf_\gamma \int \rho(\gamma)\,\|\dot\gamma\|\,\mathrm{d}t$, always a metric. Its discrete analogue weights each near-neighbour edge by $d_{ij}\sqrt{p_ip_j}$ (a geometric-mean discretization) and takes the shortest-path distance on the neighbourhood graph; the shortest-path closure restores the triangle inequality. The <code>-sqrt</code> variants are the special case that uses direct edges only.</p>
+<p><strong>Estimating the density.</strong> A kNN/KDE estimate of $p_i$ in pixel space is unreliable: images live in hundreds to thousands of dimensions, where distances concentrate. We instead estimate density on the low-dimensional representation we already learn: kNN/KDE in the VAE latent space; reading it directly off the GMVAE prior $p(\mathbf{z})=\sum_j \lambda_j\mathcal{N}(\mathbf{z};\mu_j,\Sigma_j)$; or using a normalizing flow, whose change-of-variables gives the <em>exact</em> likelihood and simultaneously provides the flatten-to-uniform map.</p>
+<p><strong>Calibrating $\tau$ via Zador's theorem.</strong> The temperature $\tau$ need not be a free knob. Minimizing $W_1(\hat{\mu},\hat{\omega})$ is an optimal-quantization problem, and Zador's theorem <sup class="cite">[<a href="#ref-zador1982">10</a>]</sup><sup class="cite">[<a href="#ref-grafluschgy2000">11</a>]</sup> gives the asymptotically optimal density of representatives,</p>
+<p>$$
+n^\star(\mathbf{x}) \;\propto\; \rho(\mathbf{x})^{\frac{d}{d+r}},
+$$</p>
+<p>with $\rho$ the data density, $d$ the intrinsic dimension, and $r$ the transport-cost order ($r=1$ for $W_1$). The exponent $\tfrac{d}{d+r}<1$ says representatives should track density <em>sublinearly</em>: proportional covering ($\tau=1$) over-concentrates on the modes and starves the tails. So $\tau$ plays the role of this exponent and should sit below $1$ and decrease with intrinsic dimension — consistent with our finding that $\tau=0.5$ beats $\tau=1.0$. Explore the exponent below.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/zador.html" width="100%" height="520"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Zador exponent"></iframe>
+  <figcaption>The optimal representative density $n^\star\propto\rho^{d/(d+r)}$ is sublinear; the exponent $\to 1$ only as $d\to\infty$.</figcaption>
+</figure>
+
+<p><strong>Alternatives that avoid density.</strong> Because the Lemma is itself a $W_1$ bound, one can bypass density estimation and minimize $W_1$ directly by measure quantization (weighted $k$-medoids) or kernel herding <sup class="cite">[<a href="#ref-welling2009herding">5</a>]</sup>. Conversely, if the goal is generalization rather than mass-matching, the relevant importance is a loss- or gradient-based <em>sensitivity</em> rather than input density, which better preserves decision boundaries.</p>
+<h2 id="experiments">Experiments</h2>
+<p><strong>Setup.</strong> We follow the standard dataset-condensation protocol: for each method we select the coreset, train a three-block ConvNet from scratch, and report test accuracy (mean ± std over five networks) at budgets of $1/10/50$ images per class (IPC). Density variants use a kNN estimate with temperature $\tau\in\{0.1,0.5,1.0\}$ applied as $p_i\mapsto p_i^\tau$; <code>-sqrt</code> uses $\sqrt{p_ip_j}$. Feature variants project to the top-100 PCA components (<code>-pca-100</code>) or a random subspace (<code>-proj-100</code>, <code>-proj-2</code>); <code>-sobol</code> seeds the cover with a Sobol sequence; "(bis)" marks an independent batch.</p>
+<p><strong>Results.</strong> No single variant dominates, and the regime matters. Density-aware covering gives the clearest gains at low-to-moderate budgets — on MNIST at IPC 10, <code>MCS-metric-0.5</code> reaches 89.93% vs 85.79% for plain MCS and 82.50% for <code>Rand</code>; on FMNIST at IPC 10 it reaches 74.05% vs 57.70%. The strength matters: $\tau=0.5$ is typically best while $\tau=1.0$ over-sparsifies. At IPC 50 the geometry buys little, and on CIFAR uniform <code>Rand</code> stays strong — consistent with the Lemma, geometry helps most where the covering radius $\varepsilon$ is large.</p>
+<div style="overflow-x:auto;font-size:12px;margin:16px 0;">
+<table>
+<thead><tr><th style="text-align:left">Method</th><th>MNIST (1/10/50)</th><th>FMNIST (1/10/50)</th><th>CIFAR10 (1/10/50)</th><th>CIFAR100 (1/10/50)</th></tr></thead>
+<tbody>
+<tr><td>Rand</td><td>45.38 / 82.50 / 94.62</td><td>44.28 / 73.44 / 81.39</td><td>15.61 / 23.70 / 34.26</td><td>3.62 / 7.07 / 19.59</td></tr>
+<tr><td>MCS</td><td><b>48.01</b> / 85.79 / 96.44</td><td>22.13 / 57.70 / 72.41</td><td>12.02 / 21.55 / 25.42</td><td>2.46 / 6.98 / 15.61</td></tr>
+<tr><td>MCS-rand (bis)</td><td>43.01 / 81.32 / 95.41</td><td>41.27 / 68.53 / 82.22</td><td>13.28 / 23.66 / 32.26</td><td>3.08 / 7.85 / 19.56</td></tr>
+<tr><td>MCS-rand-pca-100 (bis)</td><td>38.74 / 82.83 / 95.16</td><td>42.89 / 70.72 / 80.79</td><td>16.94 / 22.72 / 33.14</td><td>2.97 / 10.46 / <b>20.00</b></td></tr>
+<tr><td>MCS-sobol (bis)</td><td>35.05 / 85.11 / 94.94</td><td>45.84 / 71.87 / <b>82.46</b></td><td>13.94 / 23.49 / 31.58</td><td>3.49 / 7.63 / 19.52</td></tr>
+<tr><td>MCS-sobol-pca-100 (bis)</td><td>41.68 / 84.69 / 95.63</td><td><b>50.11</b> / 70.39 / 81.77</td><td>15.17 / 22.74 / 33.31</td><td><b>3.85</b> / 7.22 / 19.63</td></tr>
+<tr><td>MCS-rand-proj-100 (bis)</td><td>42.21 / 85.29 / 95.22</td><td>42.73 / 72.49 / 81.67</td><td>17.80 / 22.88 / <b>35.06</b></td><td>2.82 / 7.84 / 19.07</td></tr>
+<tr><td>MCS-rand-proj-2 (bis)</td><td>39.44 / 86.30 / 95.22</td><td>49.69 / 72.03 / 81.55</td><td><b>17.88</b> / 22.98 / 33.40</td><td>2.79 / 7.20 / 19.58</td></tr>
+<tr><td>MCS-cover-0.1</td><td>11.58 / 59.21 / 97.47</td><td>11.83 / 55.31 / 77.44</td><td>10.72 / 17.69 / 23.48</td><td>1.63 / 6.83 / 16.34</td></tr>
+<tr><td>MCS-cover-0.5</td><td>14.58 / 79.88 / <b>97.65</b></td><td>14.30 / 64.29 / 80.13</td><td>12.02 / 17.71 / 24.85</td><td>1.58 / 6.32 / 16.96</td></tr>
+<tr><td>MCS-cover-1.0</td><td>44.39 / 81.28 / 96.67</td><td>45.42 / 67.22 / 73.38</td><td>13.65 / 19.29 / 24.07</td><td>3.01 / 6.32 / 15.48</td></tr>
+<tr><td>MCS-cover-sqrt-0.1</td><td>20.57 / 76.07 / 97.40</td><td>18.28 / 57.84 / 76.96</td><td>11.80 / 17.86 / 26.39</td><td>1.62 / 9.20 / 17.49</td></tr>
+<tr><td>MCS-cover-sqrt-0.5</td><td>24.09 / 85.40 / 97.49</td><td>20.11 / 59.54 / 75.58</td><td>12.09 / 18.52 / 24.25</td><td>1.90 / 6.89 / 16.69</td></tr>
+<tr><td>MCS-cover-sqrt-1.0</td><td>47.45 / 85.10 / 97.04</td><td>21.15 / 61.96 / 72.12</td><td>12.01 / 20.83 / 23.87</td><td>2.52 / 5.55 / 15.99</td></tr>
+<tr><td>MCS-metric-0.1</td><td>17.31 / 82.45 / 86.67</td><td>37.06 / 69.79 / 75.90</td><td>14.57 / <b>25.26</b> / 34.15</td><td>2.67 / 8.55 / <b>20.00</b></td></tr>
+<tr><td>MCS-metric-0.5</td><td>31.87 / <b>89.93</b> / 96.53</td><td>42.90 / <b>74.05</b> / 79.56</td><td>14.51 / 22.50 / 32.57</td><td>3.10 / 7.27 / 19.35</td></tr>
+<tr><td>MCS-metric-1.0</td><td>27.87 / 83.82 / 95.97</td><td>44.91 / 64.66 / 71.49</td><td>14.96 / 20.05 / 27.15</td><td>3.54 / 5.75 / 15.03</td></tr>
+<tr><td>MCS-metric-sqrt-0.1</td><td>36.25 / 89.64 / 97.11</td><td>38.43 / 73.11 / 80.77</td><td>10.98 / 18.80 / 30.99</td><td>2.43 / <b>12.13</b> / 19.51</td></tr>
+<tr><td>MCS-metric-sqrt-0.5</td><td>33.25 / 89.59 / 96.99</td><td>35.68 / 67.53 / 78.01</td><td>12.94 / 16.11 / 28.53</td><td>2.18 / 11.23 / 18.42</td></tr>
+<tr><td>MCS-metric-sqrt-1.0</td><td><b>47.70</b> / 84.26 / 96.69</td><td>31.22 / 59.21 / 72.09</td><td>14.37 / 19.24 / 25.45</td><td>2.88 / 7.19 / 15.61</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Test accuracy (%), mean over five networks; std omitted for readability. Bold marks the best entry in each column block.</p>
+
+<h2 id="discussion">Discussion</h2>
+<p>Three patterns emerge. First, density-awareness helps when budget is scarce and hurts when it is plentiful: at small IPC the cover places few centers, so spending them in proportion to mass pays off, whereas at IPC 50 uniform covering already resolves the distribution. Second, the reweighting strength behaves like a temperature — moderate $\tau=0.5$ is robust while $\tau=1.0$ inflates dense-region distances so much that the cover starves the tails, exactly the sublinear-exponent behaviour Zador's theorem predicts. Third, the feature space matters as much as the weighting: projecting to a PCA or low-dimensional random subspace before covering is competitive on CIFAR, suggesting part of the benefit is discounting noisy off-manifold directions. The clearest failure mode is <code>-cover</code> at IPC 1, where a single asymmetric-radius ball per class is too coarse.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>We framed coreset selection as covering and showed, via a Kantorovich–Rubinstein bound, that the loss gap is governed by the covering radius and hence the distance defining the cover. This motivates two manifold-aware remedies: flattening the data to a uniform cube with CDF and Rosenblatt transforms, and reweighting the distance by local density, which we identify as a discrete conformal change of metric. Geometry-aware covering helps most at small budgets and on lower-resolution data — where the covering radius is large — and little at large budgets. Promising next steps are replacing the direct-edge weighting with genuine geodesics, and using GMVAE local charts to flatten multi-chart manifolds and to <em>generate</em> rather than select the covering centers.</p>
+    </article>
+  </div>
+
+  <section class="refs" id="references">
+    <h2>References</h2>
+    <ol>
+<li id="ref-wang2018dataset"><span class="rnum">[1]</span> Tongzhou Wang et al.. <em>Dataset Distillation</em>. arXiv preprint arXiv:1811.10959, 2018.</li>
+<li id="ref-zhao2021gradient"><span class="rnum">[2]</span> Bo Zhao, Konda Reddy Mopuri, Hakan Bilen. <em>Dataset Condensation with Gradient Matching</em>. International Conference on Learning Representations (ICLR), 2021.</li>
+<li id="ref-zhao2023dm"><span class="rnum">[3]</span> Bo Zhao, Hakan Bilen. <em>Dataset Condensation with Distribution Matching</em>. IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2023.</li>
+<li id="ref-sener2018coreset"><span class="rnum">[4]</span> Ozan Sener, Silvio Savarese. <em>Active Learning for Convolutional Neural Networks: A Core-Set Approach</em>. International Conference on Learning Representations (ICLR), 2018.</li>
+<li id="ref-welling2009herding"><span class="rnum">[5]</span> Max Welling. <em>Herding Dynamical Weights to Learn</em>. International Conference on Machine Learning (ICML), 2009.</li>
+<li id="ref-arvanitidis2018latent"><span class="rnum">[6]</span> Georgios Arvanitidis, Lars Kai Hansen, S{\o}ren Hauberg. <em>Latent Space Oddity: On the Curvature of Deep Generative Models</em>. International Conference on Learning Representations (ICLR), 2018.</li>
+<li id="ref-dilokthanakul2016gmvae"><span class="rnum">[7]</span> Nat Dilokthanakul et al.. <em>Deep Unsupervised Clustering with Gaussian Mixture Variational Autoencoders</em>. arXiv preprint arXiv:1611.02648, 2016.</li>
+<li id="ref-peyre2019computational"><span class="rnum">[8]</span> Gabriel Peyr{\&#x27;e}, Marco Cuturi. <em>Computational Optimal Transport</em>. Foundations and Trends in Machine Learning, 2019.</li>
+<li id="ref-rosenblatt1952"><span class="rnum">[9]</span> Murray Rosenblatt. <em>Remarks on a Multivariate Transformation</em>. The Annals of Mathematical Statistics, 1952.</li>
+<li id="ref-zador1982"><span class="rnum">[10]</span> Paul L. Zador. <em>Asymptotic Quantization Error of Continuous Signals and the Quantization Dimension</em>. IEEE Transactions on Information Theory, 1982.</li>
+<li id="ref-grafluschgy2000"><span class="rnum">[11]</span> Siegfried Graf, Harald Luschgy. <em>Foundations of Quantization for Probability Distributions</em>. Springer, 2000.</li>
+    </ol>
+  </section>
+  <script>
+  // Auto-size each figure iframe to its content so nothing is clipped / needs inner scrolling.
+  (function(){
+    function sizeFrames(){
+      document.querySelectorAll('article figure iframe').forEach(function(f){
+        try{
+          var d=f.contentDocument||f.contentWindow.document;
+          var h=Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
+          if(h) f.style.height=h+'px';
+        }catch(e){}
+      });
+    }
+    window.addEventListener('load',sizeFrames);
+    window.addEventListener('resize',function(){clearTimeout(window.__rt);window.__rt=setTimeout(sizeFrames,150);});
+    setTimeout(sizeFrames,300); setTimeout(sizeFrames,900);
+  })();
+  </script>
+</body>
+</html>

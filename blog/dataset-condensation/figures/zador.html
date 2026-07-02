@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zador exponent</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #wrap{display:flex;flex-direction:column}
+  canvas{display:block;width:100%;height:360px}
+  #panel{flex:0 0 auto;padding:10px 16px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .row label{min-width:150px;color:#444}
+  input[type=range]{flex:1;min-width:120px}
+  .val{font-family:monospace;color:#c0392b;min-width:34px;text-align:right}
+  #readout{font-family:monospace;margin-top:6px;color:#333}
+  .k{color:#c0392b;font-weight:bold}
+  button{font:inherit;padding:3px 9px;border:1px solid #bbb;border-radius:5px;background:#f7f7f7;cursor:pointer}
+  button.on{background:#c0392b;color:#fff;border-color:#c0392b}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="panel">
+    <div class="row"><label>Intrinsic dimension d</label><input id="d" type="range" min="1" max="30" step="1" value="2"><span class="val" id="dv">2</span>
+      <button id="r1" class="on">W&#8321; (r=1)</button><button id="r2">k-means (r=2)</button></div>
+    <div id="readout"></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const dEl=document.getElementById('d'),dv=document.getElementById('dv'),readout=document.getElementById('readout');
+const r1=document.getElementById('r1'),r2=document.getElementById('r2');
+let r=1;
+r1.onclick=()=>{r=1;r1.classList.add('on');r2.classList.remove('on');draw();};
+r2.onclick=()=>{r=2;r2.classList.add('on');r1.classList.remove('on');draw();};
+let W,H,padL,padR,padT,padB;
+function fit(){const b=cv.getBoundingClientRect();cv.width=b.width;cv.height=b.height;W=cv.width;H=cv.height;padL=55;padR=25;padT=24;padB=40;}
+function px(rho){return padL+rho*(W-padL-padR);}
+function py(v){return H-padB-v*(H-padT-padB);}
+function draw(){
+  const d=parseInt(dEl.value);dv.textContent=d;const a=d/(d+r);
+  ctx.clearRect(0,0,W,H);
+  // axes
+  ctx.strokeStyle="#ccc";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,H-padB);ctx.lineTo(W-padR,H-padB);ctx.stroke();
+  ctx.fillStyle="#888";ctx.font="12px sans-serif";
+  ctx.fillText("data density  ρ",(W)/2-20,H-12);
+  ctx.save();ctx.translate(16,H/2+70);ctx.rotate(-Math.PI/2);ctx.fillText("representative density  n*(ρ)",0,0);ctx.restore();
+  // reference line n=rho (tau=1)
+  ctx.strokeStyle="#bbb";ctx.setLineDash([6,5]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(px(0),py(0));ctx.lineTo(px(1),py(1));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="#aaa";ctx.fillText("proportional (τ=1)",px(0.62),py(0.72));
+  // curve n = rho^a
+  ctx.strokeStyle="#c0392b";ctx.lineWidth=3;ctx.beginPath();
+  for(let i=0;i<=200;i++){const rho=i/200;const v=Math.pow(rho,a);if(i===0)ctx.moveTo(px(rho),py(v));else ctx.lineTo(px(rho),py(v));}
+  ctx.stroke();
+  ctx.fillStyle="#c0392b";ctx.fillText("optimal  n* ∝ ρ^"+a.toFixed(2),px(0.30),py(Math.pow(0.30,a))-10);
+  // ticks
+  ctx.fillStyle="#999";ctx.font="11px monospace";
+  for(const tk of [0,0.5,1]){ctx.fillText(tk.toFixed(1),px(tk)-8,H-padB+16);ctx.fillText(tk.toFixed(1),padL-30,py(tk)+4);}
+  const ratio=Math.pow(4,a);
+  readout.innerHTML=`exponent &alpha; = d/(d+r) = <span class="k">${a.toFixed(2)}</span> &nbsp;|&nbsp; sublinear &rArr; predicted reweighting &tau; &asymp; <span class="k">${a.toFixed(2)}</span>. `+
+    `In a region 4&times; denser, place <span class="k">${ratio.toFixed(1)}&times;</span> more centers (vs 4&times; for &tau;=1). As d&rarr;&infin;, &alpha;&rarr;1.`;
+}
+dEl.oninput=draw;
+window.addEventListener('resize',()=>{fit();draw();});
+fit();draw();
+</script>
+</body>
+</html>
