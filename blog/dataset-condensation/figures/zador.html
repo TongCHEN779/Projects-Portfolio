@@ -59,7 +59,7 @@ function draw(){
   ctx.fillStyle="#999";ctx.font="11px monospace";
   for(const tk of [0,0.5,1]){ctx.fillText(tk.toFixed(1),px(tk)-8,H-padB+16);ctx.fillText(tk.toFixed(1),padL-30,py(tk)+4);}
   const ratio=Math.pow(4,a);
-  readout.innerHTML=`exponent &alpha; = d/(d+r) = <span class="k">${a.toFixed(2)}</span> &nbsp;|&nbsp; sublinear &rArr; predicted reweighting &tau; &asymp; <span class="k">${a.toFixed(2)}</span>. `+
+  readout.innerHTML=`exponent &alpha; = d/(d+r) = <span class="k">${a.toFixed(2)}</span> &nbsp;|&nbsp; center density exponent for W<sub>1</sub>; a conformal cover attains it at &tau;* = 1/(d+1) = <span class="k">${(1/(+dEl.value+1)).toFixed(2)}</span>. `+
     `In a region 4&times; denser, place <span class="k">${ratio.toFixed(1)}&times;</span> more centers (vs 4&times; for &tau;=1). As d&rarr;&infin;, &alpha;&rarr;1.`;
 }
 dEl.oninput=draw;

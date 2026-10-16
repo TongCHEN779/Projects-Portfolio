@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retiming a city — a traffic signal sandbox</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa;
+        --road:#262b39;--block:#161a24;--paint:#3a4152;--walk:#1e2330}
+  :root[data-theme="light"]{--road:#d9dee9;--block:#eef1f7;--paint:#ffffff;--walk:#e6eaf2}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:28px;margin:2px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:780px}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
+  @media(min-width:900px){.app{grid-template-columns:minmax(0,1fr) 300px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas#city{width:100%;height:auto;display:block;border-radius:10px;background:var(--block)}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 6px}
+  .panel h2:first-child{margin-top:0}
+  label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:10px}
+  label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .seg button{flex:1;font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--btn-bg);
+    border:1px solid var(--line);border-radius:8px;padding:7px 8px;cursor:pointer}
+  .seg button:hover{border-color:var(--blue)}
+  .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
+  .read{background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+  .read .r{display:flex;justify-content:space-between;margin:3px 0}
+  .read b{font-variant-numeric:tabular-nums}
+  canvas#chart{width:100%;height:auto;display:block;margin-top:10px;border-radius:8px;background:var(--inset);border:1px solid var(--line)}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+</style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ SIMULATION · TRAFFIC ENGINEERING</div>
+  <h1>Retime a city and watch the queues</h1>
+  <p class="lede">Nine signalised intersections, cars and bikes following an <b>intelligent-driver model</b>,
+     pedestrians who cross on their phase, and traffic that <b>turns</b> — giving way to cyclists and people in
+     the crossing, as it must. Everything appears at random. The interesting part is the panel: change the green time,
+     the yellow, the <b>offset</b> between neighbouring lights, or how many drivers turn, and watch average
+     delay collapse or explode. A green wave is just the right offset — set it and the queues melt.</p>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="city" width="680" height="620"></canvas>
+      <div class="hint">Red/green dots are the stop-line signals. <b>Blue</b> = cars, <b>teal</b> = bikes,
+        <b>amber</b> = pedestrians. Vehicles turn <b>red</b> when stopped — including turners giving way to a
+        cyclist on their inside, or to someone in the crossing.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Signal timing</h2>
+      <label>Green <b><span id="vGreen">12</span> s</b></label>
+      <input id="green" type="range" min="4" max="40" step="1" value="12">
+      <label>Yellow <b><span id="vYellow">3</span> s</b></label>
+      <input id="yellow" type="range" min="1" max="6" step="1" value="3">
+      <label>All-red <b><span id="vAllred">1</span> s</b></label>
+      <input id="allred" type="range" min="0" max="4" step="1" value="1">
+      <label>Offset / green wave <b><span id="vOffset">0</span> s</b></label>
+      <input id="offset" type="range" min="0" max="30" step="0.5" value="0">
+
+      <h2>Demand</h2>
+      <label>Cars <b><span id="vCars">14</span>/min</b></label>
+      <input id="cars" type="range" min="0" max="40" step="1" value="14">
+      <label>Bikes <b><span id="vBikes">6</span>/min</b></label>
+      <input id="bikes" type="range" min="0" max="30" step="1" value="6">
+      <label>Pedestrians <b><span id="vPeds">8</span>/min</b></label>
+      <input id="peds" type="range" min="0" max="30" step="1" value="8">
+      <label>Speed limit <b><span id="vSpeed">50</span> km/h</b></label>
+      <input id="speed" type="range" min="20" max="70" step="5" value="50">
+      <label>Turning at each junction <b><span id="vTurn">18</span> %</b></label>
+      <input id="turn" type="range" min="0" max="50" step="1" value="18">
+
+      <h2>Presets</h2>
+      <div class="seg" id="presets">
+        <button data-p="balanced" class="on">Balanced</button>
+        <button data-p="wave">Green wave</button>
+        <button data-p="bad">Bad timing</button>
+      </div>
+      <div class="seg" style="margin-top:6px">
+        <button id="pause">⏸ Pause</button>
+        <button id="reset">↻ Reset</button>
+      </div>
+
+      <div class="read" id="read"></div>
+      <canvas id="chart" width="280" height="92"></canvas>
+    </div>
+  </div>
+
+  <div class="explain">
+    <p><b>What's under the hood.</b> Each car and bike follows the <b>Intelligent Driver Model</b>:
+       <code>a = a₀[1 − (v/v₀)⁴ − (s*/s)²]</code>, where the desired gap
+       <code>s* = s₀ + vT + v·Δv/(2√(a₀b))</code> grows with speed and closing rate. A red light is simply a
+       stationary obstacle at the stop line, so queues, stop-and-go waves and discharge at green all fall out
+       of the same rule rather than being scripted. Bikes use the same model with a lower desired speed and
+       ride their own lane, so they don't block cars.</p>
+    <p style="margin-top:10px"><b>Why the offset matters.</b> Each intersection runs the same cycle
+       <code>C = 2(g + y + r)</code> but starts it <code>offset·i</code> seconds later along the corridor. If
+       the offset matches the travel time between intersections — roughly <code>distance / speed</code> — a
+       platoon released at one light arrives exactly as the next turns green: a <b>green wave</b>, and average
+       delay drops sharply. Set it to half a cycle instead and every platoon hits a red. Try
+       <i>Green wave</i> vs <i>Bad timing</i>; only the offset changes.</p>
+    <p style="margin-top:10px"><b>Turning, and who gives way.</b> At every junction each vehicle rolls a route —
+       straight, left or right — and peels off onto a quadratic Bézier arc from its stop line to the corner to
+       the far lane, rejoining the perpendicular lane once it clears the box. A turn is never free, because it
+       always cuts across somebody:</p>
+    <p style="margin-top:6px">Bikes ride <i>outside</i> the car lane, nearer the kerb, so a <b>right-turning car
+       crosses its own bike lane</b> — the classic <b>right hook</b>, and it must give way to any cyclist going
+       straight on. A <b>left turn is permissive</b>: the driver waits for a gap in oncoming traffic, cars and
+       bikes alike. And <b>both</b> turns drive over the crosswalk of the road they turn into, whose pedestrians
+       are walking on the very phase that just released the turn — so turning vehicles yield to anyone already
+       in the crossing. A driver who has waited too long will force a <i>vehicle</i> gap so the network can't
+       deadlock, but never forces a pedestrian.</p>
+    <p style="margin-top:6px">The result is that turning traffic is expensive. There are no turn pockets here,
+       so one yielding vehicle blocks everyone queued behind it. Push <i>Turning</i> up and watch a single
+       left-turner — or one waiting on a steady stream of bikes — throttle an entire approach. That is exactly
+       why real junctions buy left-turn lanes, protected arrows and separate cycle phases.</p>
+    <p style="margin-top:10px"><b>Honest note.</b> Distances and speeds are illustrative rather than
+       calibrated, each approach is a single shared lane, and demand is a homogeneous Poisson process at each
+       entry. Vehicles mid-turn don't check each other inside the box. The point is the qualitative behaviour —
+       how delay responds to timing — not a validated microsimulation.</p>
+  </div>
+</div>
+
+<script>
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const cv=document.getElementById('city'), ctx=cv.getContext('2d');
+const chartCv=document.getElementById('chart'), cctx=chartCv.getContext('2d');
+const W=cv.width, H=cv.height;
+
+/* ============ geometry ============ */
+const X=[W*0.20, W*0.50, W*0.80];      // vertical roads
+const Y=[H*0.22, H*0.50, H*0.78];      // horizontal roads
+const HALF=22;        // half roadway width
+const LANE=8;         // car lane offset from centreline
+const BIKE=16;        // bike lane offset
+const STOPD=HALF+5;   // stop line distance from intersection centre
+const PXKMH=0.5;      // px/s per km/h (illustrative)
+
+/* ============ state ============ */
+let t=0, running=true, lanes=[], pedList=[], stats=null, chartData=[], turners=[], laneMap={};
+const P={green:12,yellow:3,allred:1,offset:0,cars:14,bikes:6,peds:8,speed:50,turn:18};
+
+function cycle(){return 2*(P.green+P.yellow+P.allred);}
+// light state at intersection column i, row j
+function lightAt(i,j){
+  const C=cycle(), off=i*P.offset;
+  let tt=((t+off)%C+C)%C;
+  const g=P.green,y=P.yellow,r=P.allred;
+  if(tt<g)              return {ew:'green', ns:'red'};
+  if(tt<g+y)            return {ew:'yellow',ns:'red'};
+  if(tt<g+y+r)          return {ew:'red',   ns:'red'};
+  if(tt<2*g+y+r)        return {ew:'red',   ns:'green'};
+  if(tt<2*g+2*y+r)      return {ew:'red',   ns:'yellow'};
+  return                       {ew:'red',   ns:'red'};
+}
+
+/* ============ lanes ============ */
+// dir: E,W (axis h) / S,N (axis v). s = distance travelled from entry.
+function buildLanes(){
+  lanes=[];
+  const mk=(dir,axis,roadIdx,fixed,len,stops,type)=>lanes.push({dir,axis,roadIdx,fixed,len,stops,type,veh:[]});
+  for(let j=0;j<3;j++){
+    const Yc=Y[j];
+    for(const type of ['car','bike']){
+      const off=type==='car'?LANE:BIKE;
+      // East: right-hand side is +y
+      mk('E','h',j,Yc+off,W,X.map((x,i)=>({s:x-STOPD,i,j})).sort((a,b)=>a.s-b.s),type);
+      // West: right-hand side is -y
+      mk('W','h',j,Yc-off,W,X.map((x,i)=>({s:W-(x+STOPD),i,j})).sort((a,b)=>a.s-b.s),type);
+    }
+  }
+  for(let i=0;i<3;i++){
+    const Xc=X[i];
+    for(const type of ['car','bike']){
+      const off=type==='car'?LANE:BIKE;
+      // South (heading +y): right-hand side is -x
+      mk('S','v',i,Xc-off,H,Y.map((y,j)=>({s:y-STOPD,i,j})).sort((a,b)=>a.s-b.s),type);
+      // North (heading -y): right-hand side is +x
+      mk('N','v',i,Xc+off,H,Y.map((y,j)=>({s:H-(y+STOPD),i,j})).sort((a,b)=>a.s-b.s),type);
+    }
+  }
+  laneMap={}; for(const l of lanes) laneMap[l.dir+'|'+l.type+'|'+l.roadIdx]=l;
+}
+function posOf(lane,s){
+  if(lane.dir==='E') return [s, lane.fixed];
+  if(lane.dir==='W') return [W-s, lane.fixed];
+  if(lane.dir==='S') return [lane.fixed, s];
+  return [lane.fixed, H-s];                    // N
+}
+function headingOf(lane){
+  return lane.dir==='E'?[1,0]:lane.dir==='W'?[-1,0]:lane.dir==='S'?[0,1]:[0,-1];
+}
+const isEW=lane=>lane.dir==='E'||lane.dir==='W';
+// s-coordinate of an arbitrary point projected onto a lane
+const sAtPoint=(l,p)=>l.dir==='E'?p[0]:l.dir==='W'?W-p[0]:l.dir==='S'?p[1]:H-p[1];
+// s-coordinate of intersection (i,j) centre along a lane
+const sCenterOf=(l,i,j)=>l.dir==='E'?X[i]:l.dir==='W'?W-X[i]:l.dir==='S'?Y[j]:H-Y[j];
+
+/* ============ turning ============ */
+// right-hand traffic: turning right/left maps the heading like so
+const RIGHT={E:'S',S:'W',W:'N',N:'E'}, LEFT={E:'N',N:'W',W:'S',S:'E'}, OPP={E:'W',W:'E',N:'S',S:'N'};
+function targetLaneFor(lane,st,turn){
+  const nd=(turn==='R'?RIGHT:LEFT)[lane.dir];
+  const idx=isEW(lane)?st.i:st.j;          // turning off a h-road lands on v-road i, and vice versa
+  return laneMap[nd+'|'+lane.type+'|'+idx];
+}
+// a permissive left turn must yield to oncoming traffic — cars *and* bikes
+function leftGapOK(lane,st){
+  const opp=OPP[lane.dir];
+  for(const type of ['car','bike']){
+    const on=laneMap[opp+'|'+type+'|'+lane.roadIdx];
+    if(!on) continue;
+    const sc=sCenterOf(on,st.i,st.j);
+    for(const o of on.veh){ const d=sc-o.s; if(d>2 && d<75 && o.v>3) return false; }
+  }
+  return true;
+}
+// bikes ride outside the car lane, so a right-turning car cuts across them: the "right hook".
+// It must give way to any bike going straight through on its own road.
+function bikeGapOK(lane,st){
+  if(lane.type!=='car') return true;              // a turning bike is already in the bike lane
+  const bl=laneMap[lane.dir+'|bike|'+lane.roadIdx];
+  if(!bl) return true;
+  const sc=sCenterOf(bl,st.i,st.j);
+  for(const b of bl.veh){ const d=sc-b.s; if(d>-18 && d<45) return false; }
+  return true;
+}
+// every turn drives over the crosswalk of the road it turns into, and those pedestrians
+// walk on the same phase that just released the turn. Give way to anyone already crossing.
+function pedGapOK(lane,st,turn){
+  const tl=targetLaneFor(lane,st,turn); if(!tl) return true;
+  const need = isEW(tl) ? 'h' : 'v';                       // which crosswalk we drive over
+  const side = (tl.dir==='S'||tl.dir==='E') ? 1 : -1;      // which side of the junction we exit
+  for(const q of pedList){
+    if(q.i===st.i && q.j===st.j && q.cross===need && q.side===side && q.p>0 && q.p<1) return false;
+  }
+  return true;
+}
+// decide (once) what this vehicle does at the next intersection
+function planFor(lane,v){
+  const st=lane.stops.find(s=>s.s>v.s-1);
+  if(!st){ v.plan=null; return null; }
+  if(!v.plan || v.plan.st!==st){
+    let turn='S';
+    if(Math.random()*100 < P.turn) turn = Math.random()<0.5?'L':'R';
+    v.plan={st,turn}; v.gapWait=0;
+  }
+  return v.plan;
+}
+const bez=(a,c,b,u)=>[(1-u)*(1-u)*a[0]+2*(1-u)*u*c[0]+u*u*b[0], (1-u)*(1-u)*a[1]+2*(1-u)*u*c[1]+u*u*b[1]];
+function startTurn(lane,v,plan){
+  const tl=targetLaneFor(lane,plan.st,plan.turn); if(!tl) return false;
+  const P0=posOf(lane,v.s);
+  // the corner: cross the current lane's line with the target lane's line
+  const C = lane.axis==='h' ? [tl.fixed, lane.fixed] : [lane.fixed, tl.fixed];
+  // leave the junction a fixed clearance past its centre — for a left turn the corner
+  // itself still sits *before* the centre, so anchoring to the corner would exit too early
+  const exitS = sCenterOf(tl, plan.st.i, plan.st.j) + STOPD + 4;
+  const P2 = posOf(tl, exitS);
+  let arc=0, px=P0[0], py=P0[1];
+  for(let q=1;q<=12;q++){ const p=bez(P0,C,P2,q/12); arc+=Math.hypot(p[0]-px,p[1]-py); px=p[0]; py=p[1]; }
+  turners.push({P0,C,P2,u:0,arc:Math.max(arc,1),tl,exitS,len:v.len,type:lane.type,wait:v.wait,
+                v:Math.max(6,Math.min(v.v, v0(lane)*0.5))});
+  return true;
+}
+function stepTurners(dt){
+  for(let k=turners.length-1;k>=0;k--){
+    const q=turners[k];
+    if(q.u<1) q.u += q.v*dt/q.arc;
+    if(q.u>=1){
+      const blocked=q.tl.veh.some(o=>Math.abs(o.s-q.exitS)<q.len+5);
+      if(blocked){ q.u=1; q.v=0; q.wait+=dt; continue; }   // hold in the box until there's room
+      q.tl.veh.push({s:q.exitS, v:q.v, len:q.len, wait:q.wait, born:t, plan:null, gapWait:0});
+      turners.splice(k,1);
+    }
+  }
+}
+
+/* ============ simulation ============ */
+function reset(){
+  t=0; buildLanes(); pedList=[]; chartData=[]; turners=[];
+  stats={done:0, since:0, thr:0, recent:[]};
+}
+function spawn(dt){
+  for(const lane of lanes){
+    const rate=(lane.type==='car'?P.cars:P.bikes)/60;   // per second per entry
+    if(Math.random() < rate*dt){
+      const first=lane.veh.length?lane.veh[0]:null;      // lowest s
+      if(!first || first.s>26){
+        lane.veh.unshift({s:0, v:v0(lane)*0.7, len:lane.type==='car'?13:7, wait:0, born:t,
+                          plan:null, gapWait:0});
+      }
+    }
+  }
+  // pedestrians: pick a random intersection + a road to cross
+  if(Math.random() < (P.peds/60)*dt*3){
+    const i=(Math.random()*3)|0, j=(Math.random()*3)|0;
+    const cross=Math.random()<0.5?'h':'v';              // 'h' = cross the horizontal road (walk in y)
+    pedList.push({i,j,cross, p:0, side:Math.random()<0.5?-1:1, dir:Math.random()<0.5?1:-1, wait:0});
+  }
+}
+const v0=lane=>(lane.type==='car'?P.speed:Math.min(P.speed,22))*PXKMH;
+
+function stepLane(lane,dt){
+  lane.veh.sort((a,b)=>a.s-b.s);
+  // IDM constants in px units (1 px ≈ 0.55 m at this scale): a≈2.2 m/s², b≈3.3 m/s²
+  const a0=lane.type==='car'?4:3, b0=6, Tg=1.2, s0=lane.type==='car'?4:3;
+  for(let k=lane.veh.length-1;k>=0;k--){
+    const v=lane.veh[k], lead=lane.veh[k+1];
+    const plan=planFor(lane,v);
+    let gap=Infinity, dv=0;
+    if(lead){ gap=lead.s-v.s-lead.len; dv=v.v-lead.v; }
+    // nearest signal ahead that we must stop for
+    for(const st of lane.stops){
+      const d=st.s-v.s;
+      if(d<-2) continue;
+      const L=lightAt(st.i,st.j), state=isEW(lane)?L.ew:L.ns;
+      let must = state==='red';
+      if(state==='yellow'){ const stopDist=v.v*v.v/(2*b0); must = d>stopDist+2; }  // can we stop safely?
+      // a turning vehicle gives way before it crosses anyone else's path
+      if(!must && state==='green' && plan && plan.st===st && plan.turn!=='S'){
+        const yieldPed = !pedGapOK(lane,st,plan.turn);                       // people in the crosswalk
+        const yieldVeh = plan.turn==='L' ? !leftGapOK(lane,st)              // oncoming cars + bikes
+                                         : !bikeGapOK(lane,st);             // right hook onto the bike lane
+        if(yieldPed) must=true;                                             // never force a pedestrian
+        else if(yieldVeh && v.gapWait<8){ must=true; if(v.v<3) v.gapWait+=dt; }
+      }
+      if(must){ if(d<gap){ gap=Math.max(d,0.1); dv=v.v; } break; }
+      // green (or yellow we're committed to) -> not an obstacle; keep scanning further ahead
+    }
+    const sStar=s0+Math.max(0, v.v*Tg + v.v*dv/(2*Math.sqrt(a0*b0)));
+    let acc=a0*(1 - Math.pow(v.v/v0(lane),4) - Math.pow(sStar/Math.max(gap,0.1),2));
+    acc=Math.max(-20,Math.min(a0,acc));
+    v.v=Math.max(0, v.v+acc*dt);
+    v.s+=v.v*dt;
+    if(v.v<3){ v.wait+=dt; }
+    // crossed the stop line with a turn planned -> peel off onto the turning arc
+    if(plan && plan.turn!=='S' && v.s>=plan.st.s && startTurn(lane,v,plan)){
+      lane.veh.splice(k,1);
+    }
+  }
+  // retire finished vehicles
+  for(let k=lane.veh.length-1;k>=0;k--){
+    if(lane.veh[k].s>lane.len){
+      stats.done++; stats.since++;
+      stats.recent.push(lane.veh[k].wait);              // rolling window -> responds to retiming
+      if(stats.recent.length>60) stats.recent.shift();
+      lane.veh.splice(k,1);
+    }
+  }
+}
+const avgWait=()=>stats.recent.length ? stats.recent.reduce((a,b)=>a+b,0)/stats.recent.length : 0;
+function stepPeds(dt){
+  const sp=10;   // ≈1.4 m/s at this pixel scale
+  for(let k=pedList.length-1;k>=0;k--){
+    const q=pedList[k];
+    const L=lightAt(q.i,q.j);
+    // crossing the horizontal road (walking in y) needs EW traffic stopped
+    const clear = q.cross==='h' ? L.ew==='red' : L.ns==='red';
+    if(q.p===0 && !clear){ q.wait+=dt; continue; }
+    const span=2*(HALF+9);
+    q.p+=sp*dt/span;
+    if(q.p>=1) pedList.splice(k,1);
+  }
+}
+function step(dt){
+  spawn(dt);
+  for(const lane of lanes) stepLane(lane,dt);
+  stepTurners(dt);
+  stepPeds(dt);
+  t+=dt;
+}
+
+/* ============ drawing ============ */
+function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+function draw(){
+  const road=THEME('--road'), block=THEME('--block'), paint=THEME('--paint'), walk=THEME('--walk');
+  ctx.fillStyle=block; ctx.fillRect(0,0,W,H);
+  // sidewalks (slightly wider bands under the roads)
+  ctx.fillStyle=walk;
+  for(const y of Y) ctx.fillRect(0,y-HALF-6,W,2*HALF+12);
+  for(const x of X) ctx.fillRect(x-HALF-6,0,2*HALF+12,H);
+  // roadway
+  ctx.fillStyle=road;
+  for(const y of Y) ctx.fillRect(0,y-HALF,W,2*HALF);
+  for(const x of X) ctx.fillRect(x-HALF,0,2*HALF,H);
+  // centre dashes
+  ctx.strokeStyle=paint; ctx.globalAlpha=0.5; ctx.lineWidth=1.4; ctx.setLineDash([8,9]);
+  for(const y of Y){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  for(const x of X){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+  // intersections repaint (clean box) + crosswalks
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++){
+    ctx.fillStyle=road; ctx.fillRect(X[i]-HALF,Y[j]-HALF,2*HALF,2*HALF);
+    ctx.fillStyle=paint; ctx.globalAlpha=0.55;
+    for(const sgn of [-1,1]){
+      // vertical stripes (crossing the horizontal road)
+      for(let k=-2;k<=2;k++) ctx.fillRect(X[i]+sgn*(HALF+4)-2, Y[j]+k*7-2.5, 4, 5);
+      // horizontal stripes (crossing the vertical road)
+      for(let k=-2;k<=2;k++) ctx.fillRect(X[i]+k*7-2.5, Y[j]+sgn*(HALF+4)-2, 5, 4);
+    }
+    ctx.globalAlpha=1;
+  }
+  // signals
+  const col={green:THEME('--green'), yellow:THEME('--gold'), red:THEME('--red')};
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++){
+    const L=lightAt(i,j);
+    const put=(x,y,st)=>{ctx.beginPath();ctx.arc(x,y,3.4,0,7);ctx.fillStyle=col[st];ctx.fill();
+      ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.35)';ctx.stroke();};
+    put(X[i]-STOPD-3, Y[j]+LANE+7, L.ew);   // eastbound stop line
+    put(X[i]+STOPD+3, Y[j]-LANE-7, L.ew);   // westbound
+    put(X[i]-LANE-7,  Y[j]-STOPD-3, L.ns);  // southbound
+    put(X[i]+LANE+7,  Y[j]+STOPD+3, L.ns);  // northbound
+  }
+  // vehicles
+  for(const lane of lanes){
+    const h=headingOf(lane), horiz=lane.axis==='h';
+    for(const v of lane.veh){
+      const [x,y]=posOf(lane,v.s);
+      const stopped=v.v<3;
+      const w=lane.type==='car'?13:7, hgt=lane.type==='car'?7:4.5;
+      ctx.save(); ctx.translate(x,y); if(!horiz) ctx.rotate(Math.PI/2);
+      ctx.fillStyle = stopped ? THEME('--red') : (lane.type==='car'?THEME('--blue'):THEME('--green'));
+      roundRect(ctx,-w/2,-hgt/2,w,hgt,2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  // vehicles mid-turn (follow the bezier, rotate to its tangent)
+  for(const q of turners){
+    const u=Math.min(1,q.u), p=bez(q.P0,q.C,q.P2,u);
+    const dx=2*(1-u)*(q.C[0]-q.P0[0])+2*u*(q.P2[0]-q.C[0]);
+    const dy=2*(1-u)*(q.C[1]-q.P0[1])+2*u*(q.P2[1]-q.C[1]);
+    const w=q.type==='car'?13:7, hgt=q.type==='car'?7:4.5;
+    ctx.save(); ctx.translate(p[0],p[1]); ctx.rotate(Math.atan2(dy,dx));
+    ctx.fillStyle = q.v<3 ? THEME('--red') : (q.type==='car'?THEME('--blue'):THEME('--green'));
+    roundRect(ctx,-w/2,-hgt/2,w,hgt,2); ctx.fill(); ctx.restore();
+  }
+  // pedestrians
+  ctx.fillStyle=THEME('--gold');
+  for(const q of pedList){
+    const span=2*(HALF+9);
+    let x,y;
+    if(q.cross==='h'){ x=X[q.i]+q.side*(HALF+4); y=Y[q.j]-(HALF+9)+q.p*span; if(q.dir<0) y=Y[q.j]+(HALF+9)-q.p*span; }
+    else            { y=Y[q.j]+q.side*(HALF+4); x=X[q.i]-(HALF+9)+q.p*span; if(q.dir<0) x=X[q.i]+(HALF+9)-q.p*span; }
+    ctx.beginPath(); ctx.arc(x,y,2.6,0,7); ctx.fill();
+  }
+}
+function drawChart(){
+  const w=chartCv.width,h=chartCv.height;
+  cctx.clearRect(0,0,w,h); cctx.fillStyle=THEME('--inset'); cctx.fillRect(0,0,w,h);
+  cctx.fillStyle=THEME('--muted'); cctx.font='9px sans-serif'; cctx.textAlign='left';
+  cctx.fillText('avg wait per vehicle (s)',6,11);
+  if(chartData.length<2) return;
+  const mx=Math.max(6,...chartData);
+  cctx.strokeStyle=THEME('--line'); cctx.lineWidth=1;
+  cctx.beginPath(); cctx.moveTo(0,h-14); cctx.lineTo(w,h-14); cctx.stroke();
+  cctx.strokeStyle=THEME('--gold'); cctx.lineWidth=1.8; cctx.beginPath();
+  chartData.forEach((d,k)=>{
+    const x=k/(Math.max(1,chartData.length-1))*w, y=(h-16)-(d/mx)*(h-30);
+    k?cctx.lineTo(x,y):cctx.moveTo(x,y);
+  });
+  cctx.stroke();
+  cctx.fillStyle=THEME('--muted'); cctx.textAlign='right';
+  cctx.fillText(mx.toFixed(0)+'s',w-4,13);
+}
+function readout(){
+  const active=lanes.reduce((s,l)=>s+l.veh.length,0)+turners.length;
+  const queued=lanes.reduce((s,l)=>s+l.veh.filter(v=>v.v<3).length,0)+turners.filter(q=>q.v<3).length;
+  const avg=avgWait();
+  document.getElementById('read').innerHTML=
+    `<div class="r"><span>avg wait / vehicle</span><b>${avg.toFixed(1)} s</b></div>
+     <div class="r"><span>throughput</span><b>${stats.thr.toFixed(0)} /min</b></div>
+     <div class="r"><span>on the network</span><b>${active}</b></div>
+     <div class="r"><span>queued right now</span><b style="color:${queued>active*0.5?'var(--red)':'var(--green)'}">${queued}</b></div>
+     <div class="r"><span>cycle length</span><b>${cycle().toFixed(0)} s</b></div>`;
+}
+
+/* ============ loop ============ */
+let last=performance.now(), acc=0, sampleT=0, thrWindow=0, thrCount=0;
+function frame(now){
+  const real=Math.min(0.05,(now-last)/1000); last=now;
+  if(running){
+    let dt=real;
+    // fixed sub-steps keep the IDM stable
+    const n=Math.ceil(dt/0.02);
+    for(let k=0;k<n;k++) step(dt/n);
+    // throughput over a moving window
+    thrWindow+=dt; thrCount+=stats.since; stats.since=0;
+    if(thrWindow>=3){ stats.thr=thrCount/thrWindow*60; thrWindow=0; thrCount=0; }
+    sampleT+=dt;
+    if(sampleT>=0.6){ sampleT=0; chartData.push(avgWait());
+      if(chartData.length>120) chartData.shift(); }
+  }
+  draw(); drawChart(); readout();
+  requestAnimationFrame(frame);
+}
+
+/* ============ controls ============ */
+const bind=(id,key,fmt)=>{
+  const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
+  const upd=()=>{P[key]=+el.value; if(out) out.textContent=fmt?fmt(+el.value):el.value;};
+  el.addEventListener('input',upd); upd();
+};
+bind('green','green'); bind('yellow','yellow'); bind('allred','allred'); bind('offset','offset');
+bind('cars','cars'); bind('bikes','bikes'); bind('peds','peds'); bind('speed','speed'); bind('turn','turn');
+
+function setSliders(o){
+  for(const k in o){ const el=document.getElementById(k); if(el){ el.value=o[k]; el.dispatchEvent(new Event('input')); } }
+}
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#presets button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const p=b.dataset.p;
+  if(p==='balanced') setSliders({green:12,yellow:3,allred:1,offset:0,speed:50});
+  if(p==='wave'){
+    // offset ≈ travel time between neighbouring intersections
+    const d=X[1]-X[0], v=50*PXKMH;
+    setSliders({green:14,yellow:3,allred:1,speed:50,offset:Math.round((d/v)*2)/2});
+  }
+  if(p==='bad'){ setSliders({green:12,yellow:3,allred:1,speed:50}); setSliders({offset:Math.round(cycle()/2*2)/2}); }
+  reset();
+});
+document.getElementById('pause').onclick=e=>{running=!running; e.target.textContent=running?'⏸ Pause':'▶ Play';};
+document.getElementById('reset').onclick=reset;
+window.addEventListener('themechange',()=>{draw();drawChart();});
+
+/* ============ go ============ */
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

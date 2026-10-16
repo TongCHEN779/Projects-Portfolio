@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>榫卯 · A gallery of Chinese joinery</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa;
+        --scene:#12151d}
+  :root[data-theme="light"]{--scene:#f2f0ea}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.6}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:30px;margin:2px 0 8px;letter-spacing:-0.4px}
+  h1 .en{font-size:17px;color:var(--muted);font-weight:500;letter-spacing:0}
+  .lede{color:var(--muted);max-width:820px}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
+  @media(min-width:920px){.app{grid-template-columns:minmax(0,1fr) 320px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas#view{width:100%;height:auto;display:block;border-radius:10px;background:var(--scene);cursor:grab}
+  canvas#view:active{cursor:grabbing}
+  .stagebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
+  .stagebar input[type=range]{accent-color:var(--gold);flex:1;min-width:120px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 6px}
+  .jname{font-size:22px;font-weight:700;margin:2px 0 0}
+  .jpy{font-size:13px;color:var(--gold);margin:0 0 2px}
+  .jen{font-size:14px;color:var(--muted);margin:0 0 10px;font-style:italic}
+  .jcat{display:inline-block;font-size:11px;color:var(--green);border:1px solid var(--line);
+    border-radius:999px;padding:2px 10px;background:var(--inset);margin-bottom:10px}
+  .jdesc{font-size:13.5px;color:var(--ink)}
+  .jdesc .zh{margin:0 0 8px}
+  .jdesc .en{color:var(--muted);font-size:12.5px;margin:0}
+  .legend{margin-top:12px;font-size:12.5px}
+  .legend .row{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .legend .dot{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.3)}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .btnrow button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--btn-bg);
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+  .btnrow button:hover{border-color:var(--blue)}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);cursor:pointer}
+  .chk input{accent-color:var(--blue);width:15px;height:15px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 12px}
+  .filters button{font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--btn-bg);
+    border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer}
+  .filters button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:40px}
+  @media(min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:860px){.grid{grid-template-columns:repeat(4,1fr)}}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:10px;cursor:pointer;
+    transition:transform .12s ease,border-color .12s ease}
+  .tile:hover{transform:translateY(-3px);border-color:var(--blue)}
+  .tile.on{border-color:var(--gold)}
+  .tile canvas{width:100%;height:auto;display:block;border-radius:8px;background:var(--scene)}
+  .tile .t{font-size:13px;font-weight:700;margin-top:7px}
+  .tile .e{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+</style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ 中国传统木作 · CHINESE JOINERY</div>
+  <h1>榫卯 <span class="en">— the joints that hold furniture together without a single nail</span></h1>
+  <p class="lede">A rotatable, explode-able atlas of traditional Chinese <b>mortise-and-tenon (榫卯 sǔnmǎo)</b>
+     joints. Each one is modelled from solid blocks — including tapered dovetails and round members — and
+     rendered from scratch with no 3-D library. Pull the <b>拆解 / explode</b> slider to separate the pieces and
+     watch the hidden tenon come out of its mortise. Pick any joint from the gallery below.</p>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="view" width="700" height="500"></canvas>
+      <div class="stagebar">
+        <span>拆解 explode</span>
+        <input id="exp" type="range" min="0" max="100" value="0">
+        <label class="chk"><input type="checkbox" id="xray"> 透视 x-ray</label>
+        <label class="chk"><input type="checkbox" id="spin"> 自转 spin</label>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="jcat" id="jcat"></div>
+      <div class="jname" id="jname"></div>
+      <div class="jpy" id="jpy"></div>
+      <div class="jen" id="jen"></div>
+      <div class="jdesc"><p class="zh" id="dzh"></p><p class="en" id="den"></p></div>
+      <div class="legend" id="legend"></div>
+      <div class="btnrow">
+        <button id="prev">← 上一个</button>
+        <button id="reset">↺ 复位视角</button>
+        <button id="next">下一个 →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="explain">
+    <p><b>怎么画出来的 · The renderer.</b> 每个零件由一组凸多面体块组成:轴对齐的<b>方料</b>是长方体,
+       <b>燕尾</b>的斜面用六面体(两个梯形面)表示,<b>圆材</b>用棱柱近似。<b>卯眼(孔)</b>由"长方体减长方体"
+       生成——一次布尔差最多分解成六个小长方体,足够表达这里所有方形卯眼。渲染时每个面根据顶点算出朝外法线,
+       背面剔除,再按深度从远到近绘制(画家算法),明暗是法线与固定光源的一次点积。整套渲染器没有用任何三维库。</p>
+    <p style="margin-top:8px" class="en" style="color:var(--muted)"><b>In English.</b> Every piece is a set of
+       convex blocks: axis-aligned members are boxes, dovetail tapers are hexahedra built from two trapezoid
+       quads, and round members are prism approximations. A mortise is carved by subtracting one box from
+       another — a single box-minus-box splits into at most six boxes, enough for every square mortise here.
+       Each face gets an outward normal from its vertices, back-faces are culled, and the survivors are painted
+       far-to-near with one dot-product of shading. No 3-D library.</p>
+    <p style="margin-top:10px"><b>为什么值得做 · Why it's here.</b> 榫卯是"用极少的规则生成严整结构"的绝佳例子——
+       一个凸块加一次布尔差,就能穷举出面接合、丁字交叉、三维复合三大类几十种做法。这与本站其它项目里
+       "从少量生成元推出整个群/层级"的思路是同一种乐趣。</p>
+    <p style="margin-top:10px"><b>老实话 · Honest note.</b> 复杂的曲线榫(如霸王枨、鲤鱼榫)和三维斜接
+       (粽角榫)在这里做了几何简化,重在示意其咬合关系而非精确的工程公差;实际制作请以专业图纸为准。</p>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   Geometry primitives
+   ========================================================================== */
+const S=28, L=104, TH=15, TZ=14;   // half-section / half-length / tenon half-sizes
+// block constructors ------------------------------------------------------
+const B=(x0,y0,z0,x1,y1,z1)=>({t:'b',b:[x0,y0,z0,x1,y1,z1]});
+const HX=(q0,q1)=>({t:'p',v:[...q0,...q1],
+  f:[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]]});
+function PR(axis,c,r,len,n){ n=n||16; const v=[],rings=[[],[]];
+  for(let e=0;e<2;e++){ const h=(e?1:-1)*len/2;
+    for(let i=0;i<n;i++){ const t=i/n*2*Math.PI, u=Math.cos(t)*r, w=Math.sin(t)*r;
+      let p; if(axis==='x')p=[c[0]+h,c[1]+u,c[2]+w]; else if(axis==='y')p=[c[0]+u,c[1]+h,c[2]+w];
+      else p=[c[0]+u,c[1]+w,c[2]+h]; rings[e].push(v.length); v.push(p);} }
+  const f=[rings[0].slice().reverse(), rings[1].slice()];
+  for(let i=0;i<n;i++){ const j=(i+1)%n; f.push([rings[0][i],rings[0][j],rings[1][j],rings[1][i]]); }
+  return {t:'p',v,f};
+}
+// box minus box -> up to six boxes ---------------------------------------
+function sub1(bx,h){ const [x0,y0,z0,x1,y1,z1]=bx,[a0,b0,c0,a1,b1,c1]=h;
+  const X0=Math.max(x0,a0),X1=Math.min(x1,a1),Y0=Math.max(y0,b0),Y1=Math.min(y1,b1),
+        Z0=Math.max(z0,c0),Z1=Math.min(z1,c1);
+  if(X0>=X1||Y0>=Y1||Z0>=Z1) return [bx];
+  const o=[];
+  if(x0<X0)o.push([x0,y0,z0,X0,y1,z1]); if(X1<x1)o.push([X1,y0,z0,x1,y1,z1]);
+  if(y0<Y0)o.push([X0,y0,z0,X1,Y0,z1]); if(Y1<y1)o.push([X0,Y1,z0,X1,y1,z1]);
+  if(z0<Z0)o.push([X0,Y0,z0,X1,Y1,Z0]); if(Z1<z1)o.push([X0,Y0,Z1,X1,Y1,z1]);
+  return o;
+}
+function cut(blocks,...holes){ let bs=blocks.filter(k=>k.t==='b').map(k=>k.b);
+  const keep=blocks.filter(k=>k.t!=='b');
+  for(const h of holes){ const nx=[]; const hb=h.b||h; for(const b of bs) nx.push(...sub1(b,hb)); bs=nx; }
+  return [...keep,...bs.map(b=>({t:'b',b}))];
+}
+// piece helper
+const pc=(zh,en,c,dir,blocks)=>({zh,en,c,dir,blocks});
+const C1='#c8925a', C2='#8a5734', C3='#e6c07a', C4='#6f4a2c';  // two woods + key + panel
+
+/* ==========================================================================
+   Joint builders — grouped in 3 categories
+   ========================================================================== */
+// --- shared skeletons -------------------------------------------------
+// a mortised post standing along Y, with a rectangular through/blind mortise
+function post(holes){ return pc('立料·卯','Mortised post',C2,[0,0,0], cut([B(-S,-L,-S,S,L,S)],...holes)); }
+// a rail coming from -X, shoulder at x=-S, tenon block(s) given
+function rail(tenons,extra){ const bl=[B(-160,-S,-S,-S,S,S),...tenons,...(extra||[])];
+  return pc('横料·榫','Tenoned rail',C1,[-1,0,0], bl); }
+
+const J={};
+/* ---------- 1) 面与面接合 (boards) ----------
+   Two boards meet end-to-end; the joint region x∈[0,dep] is tiled by alternating
+   dovetail PINS (board A, wide at the far end) and TAILS (board B, narrow at the
+   far end), so they interlock exactly and lock against pulling apart along x.
+   flare=0 gives a straight-sided finger/box joint. */
+function cornerBoards(kind){
+  const t=10, W=80, dep=34, n=4, flare=(kind==='finger'?0:9);
+  const e=[]; for(let i=0;i<=n;i++) e.push(-W + i*(2*W/n));
+  const pins=[], tails=[];
+  for(let i=0;i<n;i++){ const z0=e[i], z1=e[i+1];
+    if(i%2===0){ const q=[[0,-t,z0],[dep,-t,z0-flare],[dep,-t,z1+flare],[0,-t,z1]];   // pin: wider at dep
+      pins.push(HX(q,q.map(p=>[p[0],t,p[2]]))); }
+    else       { const q=[[0,-t,z0],[dep,-t,z0+flare],[dep,-t,z1-flare],[0,-t,z1]];   // tail: narrower at dep
+      tails.push(HX(q,q.map(p=>[p[0],t,p[2]]))); }
+  }
+  return {pieces:[
+    pc('板 A (销)','Board A — pins',C2,[-1,0,0],[B(-96,-t,-W,0,t,W),...pins]),
+    pc('板 B (尾)','Board B — tails',C1,[1,0,0],[B(dep,-t,-W,dep+96,t,W),...tails])
+  ]};
+}
+J.dovetail   =()=>cornerBoards('dovetail');
+J.finger     =()=>cornerBoards('finger');
+J.tongue=()=>{ // 龙凤榫 tongue & groove — two boards edge to edge
+  const t=11,W=90;
+  const A=cut([B(-W,-t,-40,0,t,40)], B(-2.5,-t-1,-14,0.001,t+1,14)); // groove on right edge
+  const B2=[B(0,-t,-40,W,t,40)];
+  const tongue=[B(-2.5,-t+3,-14,0,t-3,14)];  // tongue on left edge of board B
+  return {pieces:[
+    pc('凹槽板 (龙)','Grooved board',C2,[-1,0,0],A),
+    pc('凸榫板 (凤)','Tongued board',C1,[1,0,0],[...B2,...tongue])
+  ]};
+};
+J.dado=()=>{ // 槽口 dado — a shelf let into a groove in a side panel
+  const t=11;
+  const side=cut([B(-14,-90,-60,14,90,60)], B(-15,-t,-60,15,t,20)); // groove across the panel
+  const shelf=[B(-14,-t,-60,120,t,20)];
+  return {pieces:[ pc('立板 (开槽)','Side panel with dado',C2,[0,0,0],side),
+                   pc('搁板','Shelf',C1,[1,0,0],shelf) ]};
+};
+J.slidingDT=()=>{ // 燕尾槽 / 走马销 sliding dovetail
+  const t=12;
+  // side panel with a dovetail-shaped groove (approx: trapezoid channel)
+  const side=[B(-14,-90,-60,14,90,60)];
+  const groove=B(-15,-t-1,-14,15,t+1,14);
+  const sideCut=cut(side, groove);
+  const key=[HX([[-14,-t,-9],[-14,t,-14],[-14,t,14],[-14,-t,9]],
+                [[120,-t,-9],[120,t,-14],[120,t,14],[120,-t,9]])];
+  return {pieces:[ pc('燕尾槽板','Panel with dovetail slot',C2,[0,0,0],sideCut),
+                   pc('走马销','Sliding dovetail key',C1,[1,0,0],key) ]};
+};
+J.panelFrame=()=>{ // 攒边打槽装板 frame with floating panel
+  const t=10, fr=16, oW=95;
+  const frame=[]; // four mitred rails forming a square, each with an inner groove (shown as a gap)
+  frame.push(B(-oW,-fr,-oW,oW,fr,-oW+22));   // near rail
+  frame.push(B(-oW,-fr, oW-22,oW,fr, oW));   // far rail
+  frame.push(B(-oW,-fr,-oW,-oW+22,fr,oW));   // left
+  frame.push(B( oW-22,-fr,-oW,oW,fr,oW));    // right
+  const panel=[B(-oW+16,-t*0.5,-oW+16,oW-16,t*0.5,oW-16)];
+  return {pieces:[ pc('边框 (攒边)','Mitred frame',C2,[0,1,0],frame),
+                   pc('心板 (装板)','Floating panel',C4,[0,-1,0],panel) ]};
+};
+
+/* ---------- 2) 丁字 / 交叉 (frame members) ---------- */
+J.throughT=()=>({pieces:[  // 透榫 through tenon
+  post([B(-S-3,-TH,-TZ,S+3,TH,TZ)]),
+  rail([B(-S,-TH,-TZ,S+22,TH,TZ)])
+]});
+J.blindT=()=>({pieces:[    // 半榫 blind tenon
+  post([B(-S-3,-TH,-TZ,4,TH,TZ)]),
+  rail([B(-S,-TH,-TZ,2,TH,TZ)])
+]});
+J.doubleT=()=>({pieces:[   // 双榫 double tenon
+  post([B(-S-3,-TH,-22,S+3,TH,-6), B(-S-3,-TH,6,S+3,TH,22)]),
+  rail([B(-S,-TH,-22,S+20,TH,-6), B(-S,-TH,6,S+20,TH,22)])
+]});
+J.miterShoulder=()=>{ // 大格肩榫 mitered-shoulder tenon
+  const p=post([B(-S-3,-TH,-TZ,S+3,TH,TZ)]);
+  // rail with a 45° mitred shoulder hugging the post corner
+  const shoulder=HX([[-S,-S,-S],[-S,-S,S],[-S-0,-S,S],[-S,-S,-S]],[[-S,S,-S],[-S,S,S],[-S,S,S],[-S,S,-S]]);
+  const r=pc('横料·格肩','Rail w/ mitred shoulder',C1,[-1,0,0],[
+    B(-160,-S,-S,-S,S,S),
+    HX([[-S,-S,-S],[-S+22,-S,-S],[-S+22,-S,-22],[-S,-S,-22]],   // 45° cheek (near)
+       [[-S,S,-S],[-S+22,S,-S],[-S+22,S,-22],[-S,S,-22]]),
+    B(-S,-TH,-TZ,S+18,TH,TZ)]);
+  return {pieces:[p,r]};
+};
+J.crossLap=()=>{ // 十字交叉 (合掌) cross half-lap
+  const A=cut([B(-L,-S,-S,L,S,S)], B(-S,0,-S,S,S+1,S));       // notch top half at centre
+  const Bz=cut([B(-S,-S,-L,S,S,L)], B(-S,-S-1,-S,S,0,S));     // notch bottom half at centre
+  return {pieces:[ pc('横枨 X','Rail along X',C2,[0,-1,0],A),
+                   pc('纵枨 Z','Rail along Z',C1,[0, 1,0],Bz) ]};
+};
+J.teeLap=()=>{ // 丁字搭接 T half-lap
+  const A=cut([B(-L,-S,-S,L,S,S)], B(-S,0,-S,S,S+1,S));
+  const Bz=cut([B(-S,-S,-L,S,S,0)], B(-S,-S-1,-S,S,0,0));
+  return {pieces:[ pc('通料','Through rail',C2,[0,-1,0],A),
+                   pc('搭料','Lapped rail',C1,[0, 1,0],Bz) ]};
+};
+J.roundT=()=>{ // 圆材丁字 round-member T (裹腿做法, simplified)
+  const postP=PR('y',[0,0,0],S,2*L,18);
+  const railP=PR('x',[-80,0,0],S*0.98,160,18);
+  const tenon=B(-S,-TH,-TZ,S,TH,TZ);
+  return {pieces:[ pc('圆立料','Round post',C2,[0,0,0],[postP]),
+                   pc('圆横料 + 榫','Round rail + tenon',C1,[-1,0,0],[railP,tenon]) ]};
+};
+J.keyedT=()=>{ // 楔钉榫 keyed / wedged tenon (curved-rail splice, simplified straight)
+  // two rails meet end-to-end with interlocking hooked tongues + a wedge key through both
+  const A=cut([B(-150,-S,-S,10,S,S)], B(-10,-S-1,-S,10,0,S), B(-6,-S,-S-1,2,S,S+1));
+  const Bz=cut([B(-10,-S,-S,150,S,S)], B(-10,0,-S,10,S+1,S), B(-2,-S,-S-1,6,S,S+1));
+  const key=[HX([[-4,-S-6,-6],[4,-S-6,-6],[4,-S-6,6],[-4,-S-6,6]],
+                [[-6,S+6,-6],[6,S+6,-6],[6,S+6,6],[-6,S+6,6]])];
+  return {pieces:[ pc('料 A (钩)','Rail A (hook)',C2,[-1,0,0],A),
+                   pc('料 B (钩)','Rail B (hook)',C1,[ 1,0,0],Bz),
+                   pc('楔钉','Wedge key',C3,[0,-1,0],key) ]};
+};
+J.clampHead=()=>{ // 夹头榫 clamping-head tenon (trestle: leg grips the apron)
+  const leg=cut([B(-S,-L,-S,S,L,S)], B(-S-1,20,-TZ,S+1,64,TZ));  // open-topped slot in the leg
+  const apron=[B(-S,20,-TZ,120,64,TZ), B(-S,20,-S,10,64,S)];     // apron sits in the slot
+  return {pieces:[ pc('腿 (开口)','Leg with open slot',C2,[0,0,0],leg),
+                   pc('牙板 / 大边','Apron',C1,[1,0,0],apron) ]};
+};
+J.insertShoulder=()=>{ // 插肩榫 inserted-shoulder tenon
+  const leg=cut([B(-S,-L,-S,S,L,S)], B(-S-1,10,-TZ,6,60,TZ));
+  const apron=pc('牙条','Apron w/ shoulder',C1,[1,0,0],[
+    B(-S,10,-TZ,120,60,TZ),
+    HX([[-S,10,-TZ],[-S,10,TZ],[-S-16,34,TZ],[-S-16,34,-TZ]],
+       [[-S,60,-TZ],[-S,60,TZ],[-S-16,60,TZ],[-S-16,60,-TZ]]) ]);
+  return {pieces:[ pc('腿','Leg',C2,[0,0,0],leg), apron ]};
+};
+J.embrace=()=>{ // 抱肩榫 embracing-shoulder tenon (leg ↔ apron ↔ top corner)
+  const leg=cut([B(-S,-L,-S,S,L,S)], B(-S-1,30,-TZ,4,70,TZ), B(-TZ,30,-S-1,TZ,70,4));
+  const apronX=pc('大边 X','Apron (X)',C1,[-1,0,0],[B(-140,30,-TZ,-S,70,TZ), B(-S,30,-TH,4,70,TH)]);
+  const apronZ=pc('大边 Z','Apron (Z)',C3,[0,0,-1],[B(-TZ,30,-140,TZ,70,-S), B(-TH,30,-S,TH,70,4)]);
+  return {pieces:[ pc('腿','Leg (double shoulder)',C2,[0,1,0],leg), apronX, apronZ ]};
+};
+
+/* ---------- 3) 三维复合 (3-D corners) ---------- */
+J.zong=()=>{ // 粽角榫 three-way mitred corner (simplified interlock)
+  const a=pc('立料','Vertical member',C2,[0,1,0],[B(-S,-10,-S,S,150,S), B(-S,-10,-S,S,S, S)]);
+  const b=pc('横料 X','Horizontal (X)',C1,[-1,0,0],[B(-150,-S,-S,S,S,S)]);
+  const c=pc('横料 Z','Horizontal (Z)',C3,[0,0,-1],[B(-S,-S,-150,S,S,S)]);
+  // trim to give the mitred look via small corner cube shared
+  return {pieces:[a,b,c]};
+};
+J.longShort=()=>{ // 长短榫 long-and-short shoulder tenon (leg to top, two tenons)
+  const leg=pc('腿 (长短榫)','Leg — long + short tenons',C2,[0,-1,0],[
+    B(-S,-L,-S,S,S,S),
+    B(-TH,S,-TZ,TH,S+60,TZ),   // long tenon, reaches up INTO the top
+    B(-TZ,S,-TH,TZ,S+50,TH)]); // short tenon
+  const top=cut([B(-120,S+40,-120,120,S+64,120)],
+    B(-TH,S+40-1,-TZ,TH,S+64+1,TZ), B(-TZ,S+40-1,-TH,TZ,S+54,TH));
+  return {pieces:[ leg, pc('面板 / 桌面','Table top',C4,[0,1,0],top) ]};
+};
+J.threeShoulder=()=>{ // 三碰肩 three-way shoulder
+  const leg=cut([B(-S,-L,-S,S,L,S)], B(-S-1,40,-TZ,6,80,TZ), B(-TZ,40,-S-1,TZ,80,6));
+  const ax=pc('横 X','Member X',C1,[-1,0,0],[B(-140,40,-TZ,-S,80,TZ),B(-S,40,-TH,6,80,TH)]);
+  const az=pc('横 Z','Member Z',C3,[0,0,-1],[B(-TZ,40,-140,TZ,80,-S),B(-TH,40,-S,TH,80,6)]);
+  return {pieces:[ pc('腿','Leg (3 shoulders)',C2,[0,1,0],leg), ax, az ]};
+};
+J.brace=()=>{ // 霸王枨 giant's-arm brace (hooked tenon into leg, simplified)
+  const leg=cut([B(-S,-L,-S,S,L,S)], B(-S-1,-40,-TZ,4,-8,TZ));
+  const armEnd=B(-S,-40,-TZ,10,-8,TZ);
+  const arm=pc('霸王枨','Giant’s-arm brace',C1,[-0.7,0.7,0],[
+    B(-150,20,-TH,-S,20+2*TH,TH), armEnd,
+    HX([[-S,-40,-TZ],[10,-40,-TZ],[10,-8,-TZ],[-S,-8,-TZ]],
+       [[-S,-40,TZ],[10,-40,TZ],[10,-8,TZ],[-S,-8,TZ]]) ]);
+  return {pieces:[ pc('腿','Leg',C2,[0,0,0],leg), arm ]};
+};
+J.hookTenon=()=>{ // 挂榫 / 钩挂榫 hooked tenon
+  const post=cut([B(-S,-L,-S,S,L,S)], B(-S-1,-TH,-TZ,4,TH+18,TZ));
+  const rail=pc('钩榫料','Rail w/ hooked tenon',C1,[-1,0.4,0],[
+    B(-150,-S,-S,-S,S,S),
+    B(-S,-TH,-TZ,6,TH,TZ),
+    B(-2,-TH-18,-TZ,6,-TH,TZ)]);  // the downward hook
+  return {pieces:[ pc('立料','Post w/ hooked mortise',C2,[0,0,0],post), rail ]};
+};
+
+/* ==========================================================================
+   Joint catalogue (id, category, names, descriptions)
+   ========================================================================== */
+const CATS={A:'面与面接合 · Board joints', B:'丁字 / 交叉 · Frame joints', C:'三维复合 · 3-D corners'};
+const DATA=[
+ ['dovetail','A','燕尾榫','yànwěi sǔn','Dovetail joint',
+  '梯形的销与尾互相咬合,受拉方向锁死,是抽屉与箱体转角最牢的接合。',
+  'Interlocking trapezoidal pins and tails lock against pulling apart — the strongest corner for drawers and boxes.'],
+ ['finger','A','指接榫 (箱榫)','zhǐjiē sǔn','Finger / box joint',
+  '等宽方齿交错咬合,胶合面积大,常用于箱盒直角。',
+  'Straight interlocking fingers maximise glue area — a simple, strong box corner.'],
+ ['tongue','A','龙凤榫','lóngfèng sǔn','Tongue and groove',
+  '一板出凸榫(凤),一板开凹槽(龙),拼板不易翘裂。',
+  'A tongue on one board slots into a groove on the next, keeping wide glue-ups flat.'],
+ ['dado','A','槽口接合','cáokǒu jiēhé','Dado / housing',
+  '在立板上开横槽,搁板嵌入,承重稳定。',
+  'A groove across a panel houses a shelf end — steady under load.'],
+ ['slidingDT','A','燕尾槽 (走马销)','yànwěi cáo','Sliding dovetail',
+  '燕尾断面的键在燕尾槽内滑入,横向锁定又可拆装。',
+  'A dovetail-section key slides along a matching groove: locked sideways, still demountable.'],
+ ['panelFrame','A','攒边打槽装板','cuánbiān zhuāngbǎn','Frame & floating panel',
+  '四根边框打槽,心板浮装其中,随季节自由伸缩而不开裂。',
+  'A grooved mitred frame holds a floating panel that can expand and contract without splitting.'],
+ ['throughT','B','透榫','tòu sǔn','Through mortise & tenon',
+  '榫头穿透立料并露出端头,可加楔加固,是最基本也最结实的接合。',
+  'The tenon passes all the way through the post and shows on the far face — the fundamental, strongest joint.'],
+ ['blindT','B','半榫 (闷榫)','bàn sǔn','Blind / stub tenon',
+  '榫头不穿透,外表看不见榫眼,洁净但略弱于透榫。',
+  'A stub tenon stops inside the post, hiding the joint — cleaner but a little weaker.'],
+ ['doubleT','B','双榫','shuāng sǔn','Twin tenon',
+  '并列两榫,抗扭抗转,用于较宽的横料。',
+  'Two side-by-side tenons resist twisting — used on wider rails.'],
+ ['miterShoulder','B','大格肩榫','dà géjiān sǔn','Mitred-shoulder tenon',
+  '肩部做45°斜格,遮住榫眼并增大接触面,外观利落。',
+  'A 45° mitred shoulder hides the mortise and adds bearing surface for a crisp look.'],
+ ['crossLap','B','十字交叉 (合掌)','shízì jiāochā','Cross half-lap',
+  '两枨各去一半,十字咬合后表面平齐。',
+  'Each rail loses half its depth so the two cross flush — the classic cross-lap.'],
+ ['teeLap','B','丁字搭接','dīngzì dājiē','Tee half-lap',
+  '一料贯通,一料搭入半槽,构成丁字。',
+  'One member runs through; the other laps into a half-depth notch to form a T.'],
+ ['roundT','B','圆材丁字 (裹腿)','yuáncái dīngzì','Round-member tee',
+  '圆料相交处做榫,常见于圆腿家具(此处示意)。',
+  'A tenon where round members meet — common on round-leg furniture (shown schematically).'],
+ ['keyedT','B','楔钉榫','xiēdīng sǔn','Keyed / wedged tenon',
+  '两段弧料以钩榫对接,再打入楔钉锁死,多用于圈椅扶手(此处直料示意)。',
+  'Two rails hook together and a driven wedge locks them — used on curved armrests (shown straight).'],
+ ['clampHead','B','夹头榫','jiātóu sǔn','Clamping-head tenon',
+  '腿上端开口,夹住牙条与大边,案类家具的经典做法。',
+  'The leg is slotted at the top to clamp the apron — the classic joint for side tables.'],
+ ['insertShoulder','B','插肩榫','chājiān sǔn','Inserted-shoulder tenon',
+  '牙条的斜肩插入腿的豁口,受力时越压越紧。',
+  'The apron’s angled shoulder inserts into the leg and tightens under load.'],
+ ['embrace','B','抱肩榫','bàojiān sǔn','Embracing-shoulder tenon',
+  '束腰家具中,腿以双肩双榫抱住两向牙条与桌面。',
+  'On waisted tables the leg embraces two aprons with a double shoulder and double tenon.'],
+ ['zong','C','粽角榫','zòngjiǎo sǔn','Three-way mitred corner',
+  '三根料在角上各出45°斜面相交,外观如粽子尖角,三向锁定(此处简化)。',
+  'Three members meet at a corner, each mitred 45°, locking in all three directions (simplified).'],
+ ['longShort','C','长短榫','chángduǎn sǔn','Long-and-short tenon',
+  '腿顶出一长一短两榫入桌面,长短错开以免互相削弱。',
+  'The leg’s top carries one long and one short tenon into the top, offset so neither weakens the other.'],
+ ['threeShoulder','C','三碰肩','sān pèngjiān','Three-way shoulder',
+  '腿与两向横料在一角以三面肩相碰,严丝合缝。',
+  'Leg and two rails meet at a corner with three mating shoulders.'],
+ ['brace','C','霸王枨','bàwáng chéng','Giant’s-arm brace',
+  '斜枨以钩榫挂入腿内,把桌面重量传到腿上而不见外露榫头。',
+  'A diagonal brace hooks into the leg, carrying the top’s weight down with no visible tenon.'],
+ ['hookTenon','C','挂榫 (钩挂榫)','guà sǔn','Hooked tenon',
+  '榫头带下钩,插入后向下一挂即不脱出,便于装拆。',
+  'A downward hook on the tenon catches inside the mortise so it can’t pull out, yet still comes apart.'],
+];
+
+/* ==========================================================================
+   Renderer (hand-rolled)
+   ========================================================================== */
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function blockFaces(block){                       // -> [{verts:[[x,y,z]..], n:[..]}]
+  let verts, faces;
+  if(block.t==='b'){ const [x0,y0,z0,x1,y1,z1]=block.b;
+    verts=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+    faces=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+  } else { verts=block.v; faces=block.f; }
+  const cen=[0,0,0]; for(const v of verts){cen[0]+=v[0];cen[1]+=v[1];cen[2]+=v[2];}
+  cen[0]/=verts.length; cen[1]/=verts.length; cen[2]/=verts.length;
+  const out=[];
+  for(const f of faces){ const P=f.map(i=>verts[i]);
+    const u=[P[1][0]-P[0][0],P[1][1]-P[0][1],P[1][2]-P[0][2]];
+    const w=[P[2][0]-P[0][0],P[2][1]-P[0][1],P[2][2]-P[0][2]];
+    let n=[u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+    const fc=[0,0,0]; for(const p of P){fc[0]+=p[0];fc[1]+=p[1];fc[2]+=p[2];}
+    fc[0]/=P.length; fc[1]/=P.length; fc[2]/=P.length;
+    const d=(fc[0]-cen[0])*n[0]+(fc[1]-cen[1])*n[1]+(fc[2]-cen[2])*n[2];
+    let verts2=P;
+    if(d<0){ n=[-n[0],-n[1],-n[2]]; verts2=P.slice().reverse(); }
+    const ln=Math.hypot(n[0],n[1],n[2])||1; n=[n[0]/ln,n[1]/ln,n[2]/ln];
+    out.push({verts:verts2,n});
+  }
+  return out;
+}
+const LIGHT=(()=>{const v=[-0.5,0.9,0.6],m=Math.hypot(...v);return v.map(c=>c/m);})();
+function makeCam(cv){ return {cv, ctx:cv.getContext('2d'), yaw:-0.7, pitch:0.5, zoom:1}; }
+function project(cam,p, fit){
+  let [x,y,z]=p;
+  const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);
+  let X=x*cy - z*sy, Z=x*sy + z*cy;
+  const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  let Y=y*cp - Z*sp; Z=y*sp + Z*cp;
+  const zc=Z+fit.dist, f=fit.focal/Math.max(zc,1);
+  return [cam.cv.width/2 + X*f, cam.cv.height/2 - Y*f, zc];
+}
+function rotN(cam,n){ const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);
+  let X=n[0]*cy - n[2]*sy, Z=n[0]*sy + n[2]*cy;
+  const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  const Y=n[1]*cp - Z*sp; Z=n[1]*sp + Z*cp; return [X,Y,Z]; }
+const hx=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+function shade(hex,k,a){const c=hx(hex);return `rgba(${c.map(v=>Math.round(Math.min(255,v*k))).join(',')},${a})`;}
+function fitFor(cam,pieces,ex){
+  let mx=1,my=1,mz=1;
+  for(const pc of pieces){ const o=ex.map((e,i)=>e); for(const bl of pc.blocks){
+    const fs=blockFaces(bl); for(const f of fs) for(const v of f.verts){
+      mx=Math.max(mx,Math.abs(v[0])+Math.abs(pc.dir[0])*90);
+      my=Math.max(my,Math.abs(v[1])+Math.abs(pc.dir[1])*90);
+      mz=Math.max(mz,Math.abs(v[2])+Math.abs(pc.dir[2])*90);
+  }}}
+  const maxDim=Math.max(mx,my,mz)*2*1.15;
+  const sc=Math.min(cam.cv.width,cam.cv.height)*0.62/maxDim*cam.zoom;
+  return {dist:maxDim*2.4, focal:maxDim*2.4*sc};
+}
+function render(cam,pieces,ex,xray,outline){
+  const g=cam.ctx, cv=cam.cv;
+  g.setTransform(1,0,0,1,0,0); g.fillStyle=THEME('--scene'); g.fillRect(0,0,cv.width,cv.height);
+  const fit=fitFor(cam,pieces,[0,0,0]);
+  const quads=[];
+  for(const pc of pieces){
+    const off=[pc.dir[0]*ex, pc.dir[1]*ex, pc.dir[2]*ex];
+    for(const bl of pc.blocks) for(const f of blockFaces(bl)){
+      const nc=rotN(cam,f.n);
+      if(!xray && nc[2]>0.001) continue;                 // back-face cull (opaque only)
+      const pts=f.verts.map(v=>project(cam,[v[0]+off[0],v[1]+off[1],v[2]+off[2]],fit));
+      const depth=pts.reduce((s,q)=>s+q[2],0)/pts.length;
+      const lit=0.4+0.6*Math.max(0,f.n[0]*LIGHT[0]+f.n[1]*LIGHT[1]+f.n[2]*LIGHT[2]);
+      quads.push({pts,depth,fill:shade(pc.c,lit,xray?0.5:1),back:nc[2]>0});
+    }
+  }
+  quads.sort((a,b)=>b.depth-a.depth);
+  g.lineJoin='round';
+  for(const q of quads){
+    g.beginPath(); g.moveTo(q.pts[0][0],q.pts[0][1]);
+    for(let k=1;k<q.pts.length;k++) g.lineTo(q.pts[k][0],q.pts[k][1]);
+    g.closePath(); g.fillStyle=q.fill; g.fill();
+    if(outline){ g.strokeStyle=q.back?'rgba(0,0,0,.18)':'rgba(0,0,0,.42)'; g.lineWidth=1; g.stroke(); }
+  }
+}
+
+/* ==========================================================================
+   App
+   ========================================================================== */
+let cur=0, filter='all', exVal=0, xray=false, spin=false;
+const mainCam=makeCam(document.getElementById('view'));
+const built=DATA.map(d=>({meta:d, pieces:J[d[0]]().pieces}));
+
+function drawMain(){
+  const j=built[cur];
+  render(mainCam, j.pieces, exVal*0.9, xray, true);
+}
+function showInfo(){
+  const [id,cat,zh,py,en,dzh,den]=built[cur].meta;
+  document.getElementById('jcat').textContent=CATS[cat];
+  document.getElementById('jname').textContent=zh;
+  document.getElementById('jpy').textContent=py;
+  document.getElementById('jen').textContent=en;
+  document.getElementById('dzh').textContent=dzh;
+  document.getElementById('den').textContent=den;
+  const leg=built[cur].pieces.map(p=>
+    `<div class="row"><span class="dot" style="background:${p.c}"></span>
+       <span>${p.zh} · <span style="color:var(--muted)">${p.en}</span></span></div>`).join('');
+  document.getElementById('legend').innerHTML=leg;
+}
+function select(i){ cur=i; showInfo(); drawMain();
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('on',+t.dataset.i===cur));
+  document.querySelector('.app').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* gallery */
+function buildFilters(){
+  const box=document.getElementById('filters');
+  const cats=[['all','全部 All'],['A','面接合 Boards'],['B','丁字/交叉 Frame'],['C','三维复合 3-D']];
+  box.innerHTML=cats.map(([k,l])=>`<button data-f="${k}" class="${k==='all'?'on':''}">${l}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    box.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    filter=b.dataset.f; buildGrid();
+  });
+}
+function buildGrid(){
+  const grid=document.getElementById('grid'); grid.innerHTML='';
+  built.forEach((j,i)=>{
+    if(filter!=='all' && j.meta[1]!==filter) return;
+    const [id,cat,zh,py,en]=j.meta;
+    const el=document.createElement('div'); el.className='tile'+(i===cur?' on':''); el.dataset.i=i;
+    el.innerHTML=`<canvas width="220" height="165"></canvas><div class="t">${zh}</div><div class="e">${en}</div>`;
+    el.onclick=()=>select(i);
+    grid.appendChild(el);
+    const cam=makeCam(el.querySelector('canvas')); cam.yaw=-0.7; cam.pitch=0.5;
+    render(cam, j.pieces, 0, false, true);
+  });
+}
+
+/* controls */
+document.getElementById('exp').addEventListener('input',e=>{exVal=+e.target.value; drawMain();});
+document.getElementById('xray').addEventListener('change',e=>{xray=e.target.checked; drawMain();});
+document.getElementById('spin').addEventListener('change',e=>{spin=e.target.checked;});
+document.getElementById('prev').onclick=()=>select((cur-1+built.length)%built.length);
+document.getElementById('next').onclick=()=>select((cur+1)%built.length);
+document.getElementById('reset').onclick=()=>{mainCam.yaw=-0.7;mainCam.pitch=0.5;mainCam.zoom=1;drawMain();};
+/* orbit + zoom */
+let drag=false,lx=0,ly=0;
+const view=document.getElementById('view');
+view.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('mousemove',e=>{ if(!drag)return;
+  mainCam.yaw+=(e.clientX-lx)*0.009;
+  mainCam.pitch=Math.max(-0.3,Math.min(1.35,mainCam.pitch+(e.clientY-ly)*0.006));
+  lx=e.clientX;ly=e.clientY; drawMain(); });
+view.addEventListener('wheel',e=>{e.preventDefault();
+  mainCam.zoom=Math.max(0.5,Math.min(2.6,mainCam.zoom*(e.deltaY>0?0.92:1.08))); drawMain();},{passive:false});
+view.addEventListener('touchstart',e=>{drag=true;const t=e.touches[0];lx=t.clientX;ly=t.clientY;},{passive:true});
+view.addEventListener('touchmove',e=>{ if(!drag)return; const t=e.touches[0];
+  mainCam.yaw+=(t.clientX-lx)*0.009; mainCam.pitch=Math.max(-0.3,Math.min(1.35,mainCam.pitch+(t.clientY-ly)*0.006));
+  lx=t.clientX;ly=t.clientY; drawMain(); e.preventDefault();},{passive:false});
+view.addEventListener('touchend',()=>drag=false);
+window.addEventListener('themechange',()=>{drawMain(); buildGrid();});
+
+/* spin loop */
+function loop(){ if(spin){ mainCam.yaw+=0.006; drawMain(); } requestAnimationFrame(loop); }
+
+/* go */
+buildFilters(); buildGrid(); showInfo(); drawMain(); loop();
+</script>
+</body>
+</html>

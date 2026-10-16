@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tessellation studio — draw a motif, pick a symmetry group</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:28px;margin:2px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:780px}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
+  @media(min-width:900px){.app{grid-template-columns:minmax(0,1fr) 300px}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas#out{width:100%;height:auto;display:block;border-radius:10px;background:var(--canvas-bg)}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;height:fit-content}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 6px}
+  .panel h2:first-child{margin-top:0}
+  label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:10px}
+  label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .seg{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .seg button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--btn-bg);
+    border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer;flex:1 0 auto}
+  .seg button:hover{border-color:var(--blue)}
+  .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
+  #editor{width:100%;height:auto;display:block;border-radius:10px;background:var(--canvas-bg);
+    border:1px dashed var(--line);cursor:crosshair;touch-action:none;margin-top:6px}
+  .note{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);margin-top:9px;cursor:pointer}
+  .chk input{accent-color:var(--blue);width:15px;height:15px}
+  .ops{font-size:11.5px;color:var(--muted);background:var(--inset);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;margin-top:10px;font-family:ui-monospace,Menlo,monospace}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+</style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ GEOMETRY · WALLPAPER GROUPS</div>
+  <h1>Draw one motif. Let a symmetry group do the rest.</h1>
+  <p class="lede">Sketch anything in the little tile on the right — or start from a preset — then choose a
+     <b>wallpaper group</b>. The group is generated from a handful of moves (mirror, glide, quarter-turn), and
+     everything you see is your single motif repeated under every symmetry those moves generate. There are
+     exactly <b>17</b> such groups in the plane; eight of them live on the square lattice you're drawing on.</p>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="out" width="640" height="560"></canvas>
+      <div class="hint">Each colour is a different symmetry copy of the <i>same</i> motif. Toggle
+        <b>Colour by symmetry</b> off for a single-colour print.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Motif</h2>
+      <div class="seg" id="presets">
+        <button data-m="wave" class="on">Wave</button>
+        <button data-m="leaf">Leaf</button>
+        <button data-m="truchet">Arcs</button>
+        <button data-m="triangle">Triangle</button>
+        <button data-m="spiral">Spiral</button>
+      </div>
+      <canvas id="editor" width="260" height="260"></canvas>
+      <div class="note">Draw in the tile to make your own. This square is one unit cell.</div>
+      <div class="seg" style="margin-top:6px">
+        <button id="undo">↶ Undo</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <h2>Symmetry group</h2>
+      <div class="seg" id="groups">
+        <button data-g="p1">p1</button>
+        <button data-g="p2">p2</button>
+        <button data-g="pm">pm</button>
+        <button data-g="pg">pg</button>
+        <button data-g="cm">cm</button>
+        <button data-g="pmm">pmm</button>
+        <button data-g="p4" class="on">p4</button>
+        <button data-g="p4m">p4m</button>
+        <button data-g="custom">custom</button>
+      </div>
+      <div id="customBox" style="display:none">
+        <label class="chk"><input type="checkbox" id="gMX"> mirror ↔ (vertical axis)</label>
+        <label class="chk"><input type="checkbox" id="gMY"> mirror ↕ (horizontal axis)</label>
+        <label class="chk"><input type="checkbox" id="gR90"> rotate 90°</label>
+        <label class="chk"><input type="checkbox" id="gR180"> rotate 180°</label>
+        <label class="chk"><input type="checkbox" id="gGL"> glide reflection</label>
+        <label class="chk"><input type="checkbox" id="gDIAG"> diagonal mirror</label>
+        <label class="chk"><input type="checkbox" id="gCEN"> centred lattice</label>
+      </div>
+      <div class="ops" id="ops"></div>
+
+      <h2>Look</h2>
+      <label>Tile size <b><span id="vTile">120</span> px</b></label>
+      <input id="tile" type="range" min="50" max="220" step="5" value="120">
+      <label>Stroke <b><span id="vStroke">3</span> px</b></label>
+      <input id="stroke" type="range" min="1" max="10" step="0.5" value="3">
+      <div class="seg" id="pals">
+        <button data-p="0" class="on">Neon</button>
+        <button data-p="1">Warm</button>
+        <button data-p="2">Ocean</button>
+        <button data-p="3">Mono</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="bySym" checked> Colour by symmetry</label>
+      <label class="chk"><input type="checkbox" id="showGrid"> Show unit cells</label>
+      <div class="seg" style="margin-top:8px">
+        <button id="save">⬇ Save PNG</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <p><b>How it works.</b> A wallpaper group is a set of rigid motions of the plane that map the pattern to
+       itself. Rather than hard-coding each group, this page stores only its <i>generators</i> — say a
+       quarter-turn <code>r</code> and a mirror <code>m</code> — and computes the <b>group closure</b>: keep
+       composing elements until no new ones appear, reducing every translation modulo the unit cell. That
+       finite set of matrices is exactly what gets drawn. So <code>p4 = ⟨r⟩</code> gives 4 copies,
+       <code>p4m = ⟨r, m⟩</code> gives 8, and <code>p1 = ⟨⟩</code> gives 1 — the counts you see in the panel
+       aren't typed in, they're derived.</p>
+    <p style="margin-top:10px"><b>The catch that makes it interesting.</b> Not every combination of moves is a
+       new group: composing a mirror with a translation can hand you back a glide reflection you never asked
+       for, which is why <code>pg</code> and <code>cm</code> exist as separate groups at all. Turn on a few
+       custom toggles and watch the operation count jump to the next legal size — the group closes itself.
+       Of the 17 plane groups, the eight here are those compatible with a square lattice; the remaining nine
+       need a hexagonal or rhombic cell.</p>
+    <p style="margin-top:10px"><b>Why I built it.</b> Symmetry groups are the friendliest doorway into the
+       algebra I use elsewhere on this site — the same "generate a structure from a few rules and see what it
+       forces" move that drives the moment/SOS hierarchy in Project 3.</p>
+  </div>
+</div>
+
+<script>
+const THEME=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const out=document.getElementById('out'), ctx=out.getContext('2d');
+const ed=document.getElementById('editor'), ectx=ed.getContext('2d');
+const W=out.width, H=out.height;
+
+/* ================== affine matrices [a,b,c,d,e,f] ==================
+   x' = a·x + c·y + e ,  y' = b·x + d·y + f    (canvas transform order) */
+const I     =[1,0,0,1,0,0];
+const MX    =[-1,0,0,1,1,0];      // mirror about x = 1/2
+const MY    =[1,0,0,-1,0,1];      // mirror about y = 1/2
+const R180  =[-1,0,0,-1,1,1];
+const R90   =[0,1,-1,0,1,0];      // quarter turn about the cell centre
+const DIAG  =[0,1,1,0,0,0];       // mirror about the main diagonal
+const GLIDE =[-1,0,0,1,1,0.5];    // mirror + half-cell slide
+const THALF =[1,0,0,1,0.5,0.5];   // centring translation
+
+function mul(m1,m2){ // m1 ∘ m2  (apply m2 first)
+  return [
+    m1[0]*m2[0]+m1[2]*m2[1],
+    m1[1]*m2[0]+m1[3]*m2[1],
+    m1[0]*m2[2]+m1[2]*m2[3],
+    m1[1]*m2[2]+m1[3]*m2[3],
+    m1[0]*m2[4]+m1[2]*m2[5]+m1[4],
+    m1[1]*m2[4]+m1[3]*m2[5]+m1[5]
+  ];
+}
+const mod1=v=>((v%1)+1)%1;
+function key(m){ // identify an element up to lattice translation
+  const r=x=>Math.round(x*1e4)/1e4;
+  return [r(m[0]),r(m[1]),r(m[2]),r(m[3]),r(mod1(m[4])),r(mod1(m[5]))].join(',');
+}
+/* closure of the generated group, translations reduced mod the unit cell */
+function closure(gens){
+  const seen=new Map([[key(I),I]]);
+  let frontier=[I], guard=0;
+  while(frontier.length && guard++<200){
+    const next=[];
+    for(const m of frontier) for(const g of gens){
+      const p=mul(g,m); p[4]=mod1(p[4]); p[5]=mod1(p[5]);
+      const k=key(p);
+      if(!seen.has(k) && seen.size<64){ seen.set(k,p); next.push(p); }
+    }
+    frontier=next;
+  }
+  return [...seen.values()];
+}
+const GROUPS={
+  p1:{gens:[],           note:'⟨ ⟩ — translation only'},
+  p2:{gens:[R180],       note:'⟨ rot180 ⟩'},
+  pm:{gens:[MX],         note:'⟨ mirror ⟩'},
+  pg:{gens:[GLIDE],      note:'⟨ glide ⟩'},
+  cm:{gens:[MX,THALF],   note:'⟨ mirror, centring ⟩'},
+  pmm:{gens:[MX,MY],     note:'⟨ mirror, mirror ⟩'},
+  p4:{gens:[R90],        note:'⟨ rot90 ⟩'},
+  p4m:{gens:[R90,MX],    note:'⟨ rot90, mirror ⟩'}
+};
+
+/* ================== motif ================== */
+const PRESETS={
+  wave:     ()=>[[[0,0.5],[0.15,0.24],[0.35,0.5],[0.55,0.78],[0.78,0.5],[1,0.28]]],
+  triangle: ()=>[[[0.12,0.88],[0.5,0.14],[0.88,0.88],[0.12,0.88]]],
+  leaf:     ()=>{const a=[],b=[];for(let k=0;k<=24;k++){const t=k/24;
+                  a.push([0.1+0.8*t, 0.5-0.34*Math.sin(Math.PI*t)]);
+                  b.push([0.1+0.8*t, 0.5+0.12*Math.sin(Math.PI*t)]);}
+                 return [a.concat(b.reverse()), [[0.1,0.5],[0.9,0.5]]];},
+  truchet:  ()=>{const q=(cx,cy,r,a0,a1)=>{const p=[];for(let k=0;k<=18;k++){
+                    const a=a0+(a1-a0)*k/18;p.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);}return p;};
+                 return [q(0,0,0.5,0,Math.PI/2), q(1,1,0.5,Math.PI,1.5*Math.PI)];},
+  spiral:   ()=>{const p=[];for(let k=0;k<=90;k++){const t=k/90, a=t*4.2*Math.PI, r=0.045+t*0.42;
+                  p.push([0.5+r*Math.cos(a),0.5+r*Math.sin(a)]);}return [p];}
+};
+let motif=PRESETS.wave();
+let group='p4', ops=closure(GROUPS.p4.gens);
+
+const PALETTES=[
+  ['#6ea8fe','#7ee0c0','#ffd479','#ff7b72','#a78bfa','#f472b6','#fb923c','#22d3ee'],
+  ['#ff7b72','#fb923c','#ffd479','#f472b6','#e879f9','#fca5a5','#fdba74','#f9a8d4'],
+  ['#22d3ee','#6ea8fe','#7ee0c0','#38bdf8','#818cf8','#2dd4bf','#60a5fa','#a5f3fc'],
+  null // mono -> uses --ink
+];
+const P={tile:120, stroke:3, pal:0, bySym:true, grid:false};
+
+/* ================== rendering ================== */
+function strokeMotif(g, colour, lw){
+  g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=colour; g.lineWidth=lw;
+  for(const s of motif){
+    if(s.length<2) continue;
+    g.beginPath(); g.moveTo(s[0][0],s[0][1]);
+    for(let k=1;k<s.length;k++) g.lineTo(s[k][0],s[k][1]);
+    g.stroke();
+  }
+}
+function render(){
+  const T=P.tile;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle=THEME('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const pal=PALETTES[P.pal], mono=THEME('--ink');
+  const cols=Math.ceil(W/T)+2, rows=Math.ceil(H/T)+2;
+  for(let i=-1;i<cols;i++) for(let j=-1;j<rows;j++){
+    ops.forEach((m,oi)=>{
+      ctx.save();
+      ctx.translate(i*T, j*T);
+      ctx.scale(T,T);
+      ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);
+      const colour = (!P.bySym || !pal) ? (pal?pal[0]:mono) : pal[oi%pal.length];
+      strokeMotif(ctx, colour, P.stroke/T);
+      ctx.restore();
+    });
+  }
+  if(P.grid){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.strokeStyle=THEME('--line'); ctx.lineWidth=1; ctx.globalAlpha=0.9;
+    for(let i=0;i<=cols;i++){ctx.beginPath();ctx.moveTo(i*T,0);ctx.lineTo(i*T,H);ctx.stroke();}
+    for(let j=0;j<=rows;j++){ctx.beginPath();ctx.moveTo(0,j*T);ctx.lineTo(W,j*T);ctx.stroke();}
+    ctx.globalAlpha=1;
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  document.getElementById('ops').textContent =
+    (group==='custom' ? 'custom' : group) + '  ·  ' +
+    (GROUPS[group]?GROUPS[group].note+'  ·  ':'') + ops.length + ' symmetry op' + (ops.length>1?'s':'') + ' / cell';
+}
+function drawEditor(){
+  const S=ed.width;
+  ectx.setTransform(1,0,0,1,0,0);
+  ectx.fillStyle=THEME('--canvas-bg'); ectx.fillRect(0,0,S,S);
+  // light guides: centre lines + diagonals show the mirror axes
+  ectx.strokeStyle=THEME('--line'); ectx.lineWidth=1; ectx.setLineDash([4,4]);
+  ectx.beginPath();
+  ectx.moveTo(S/2,0);ectx.lineTo(S/2,S); ectx.moveTo(0,S/2);ectx.lineTo(S,S/2);
+  ectx.moveTo(0,0);ectx.lineTo(S,S);     ectx.moveTo(S,0);ectx.lineTo(0,S);
+  ectx.stroke(); ectx.setLineDash([]);
+  ectx.save(); ectx.scale(S,S);
+  const pal=PALETTES[P.pal];
+  strokeMotif(ectx, pal?pal[0]:THEME('--ink'), Math.max(1,P.stroke)/S);
+  ectx.restore();
+}
+const redraw=()=>{render();drawEditor();};
+
+/* ================== drawing in the tile ================== */
+let drawing=false;
+function edPos(e){
+  const r=ed.getBoundingClientRect(), t=e.touches?e.touches[0]:e;
+  return [Math.min(1,Math.max(0,(t.clientX-r.left)/r.width)), Math.min(1,Math.max(0,(t.clientY-r.top)/r.height))];
+}
+function start(e){drawing=true; motif.push([edPos(e)]); setPresetActive(null); redraw(); e.preventDefault();}
+function move(e){ if(!drawing) return; const s=motif[motif.length-1];
+  const p=edPos(e), q=s[s.length-1];
+  if(!q || Math.hypot(p[0]-q[0],p[1]-q[1])>0.012){ s.push(p); redraw(); }
+  e.preventDefault();}
+function end(){drawing=false;}
+ed.addEventListener('mousedown',start); ed.addEventListener('mousemove',move);
+window.addEventListener('mouseup',end);
+ed.addEventListener('touchstart',start); ed.addEventListener('touchmove',move); ed.addEventListener('touchend',end);
+
+/* ================== controls ================== */
+function setPresetActive(name){
+  document.querySelectorAll('#presets button').forEach(b=>b.classList.toggle('on', b.dataset.m===name));
+}
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>{
+  motif=PRESETS[b.dataset.m](); setPresetActive(b.dataset.m); redraw();
+});
+document.getElementById('undo').onclick=()=>{motif.pop(); redraw();};
+document.getElementById('clear').onclick=()=>{motif=[]; setPresetActive(null); redraw();};
+
+function customGens(){
+  const g=[];
+  if(document.getElementById('gMX').checked)   g.push(MX);
+  if(document.getElementById('gMY').checked)   g.push(MY);
+  if(document.getElementById('gR90').checked)  g.push(R90);
+  if(document.getElementById('gR180').checked) g.push(R180);
+  if(document.getElementById('gGL').checked)   g.push(GLIDE);
+  if(document.getElementById('gDIAG').checked) g.push(DIAG);
+  if(document.getElementById('gCEN').checked)  g.push(THALF);
+  return g;
+}
+function applyGroup(){
+  ops = group==='custom' ? closure(customGens()) : closure(GROUPS[group].gens);
+  redraw();
+}
+document.querySelectorAll('#groups button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#groups button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  group=b.dataset.g;
+  document.getElementById('customBox').style.display = group==='custom' ? '' : 'none';
+  applyGroup();
+});
+document.querySelectorAll('#customBox input').forEach(c=>c.onchange=applyGroup);
+
+const slider=(id,key,out)=>{const el=document.getElementById(id);
+  el.addEventListener('input',()=>{P[key]=+el.value; document.getElementById(out).textContent=el.value; redraw();});};
+slider('tile','tile','vTile'); slider('stroke','stroke','vStroke');
+document.querySelectorAll('#pals button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#pals button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  P.pal=+b.dataset.p; redraw();
+});
+document.getElementById('bySym').onchange=e=>{P.bySym=e.target.checked; redraw();};
+document.getElementById('showGrid').onchange=e=>{P.grid=e.target.checked; redraw();};
+document.getElementById('save').onclick=()=>{
+  const a=document.createElement('a');
+  a.download='tessellation-'+(group)+'.png'; a.href=out.toDataURL('image/png'); a.click();
+};
+window.addEventListener('themechange',redraw);
+
+/* ================== go ================== */
+redraw();
+</script>
+</body>
+</html>
