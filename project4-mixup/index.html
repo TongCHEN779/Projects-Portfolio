@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buddy Mixup — pull every point toward its nearest enemy</title>
+<script>(function(){try{var s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--ink:#e7e9ee;--muted:#9aa3b2;--line:#2a2f3d;
+        --blue:#6ea8fe;--green:#7ee0c0;--gold:#ffd479;--red:#ff7b72;--purple:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:radial-gradient(1000px 500px at 80% -10%,var(--glow),var(--bg) 55%);color:var(--ink);line-height:1.55}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  .top{padding:24px 0 6px;font-size:14px}
+  .kicker{font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700;margin:6px 0}
+  h1{font-size:28px;margin:2px 0 8px;letter-spacing:-0.4px}
+  .lede{color:var(--muted);max-width:780px}
+  .app{display:grid;grid-template-columns:1fr;gap:18px;margin:16px 0}
+  @media(min-width:860px){.app{grid-template-columns:minmax(0,1fr) 300px}}
+  .stage,.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:var(--canvas-bg)}
+  .cap{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+  .panel h2:first-child{margin-top:0}
+  .row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px;color:var(--muted)}
+  .row label{width:84px;flex:none}
+  .row input[type=range]{flex:1;min-width:0;accent-color:var(--gold)}
+  .row .v{width:46px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+  .big{background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}
+  .big .row{margin:2px 0}
+  .big input[type=range]{accent-color:var(--blue)}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button,.btn{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--btn-bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+  .seg button.on{background:var(--blue);color:var(--btn-ink);border-color:var(--blue)}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);margin:5px 0;cursor:pointer}
+  .chk input{accent-color:var(--blue)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+  .stat span{font-size:11px;color:var(--muted)}
+  .sweep{margin-top:14px}
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:8px 0 50px}
+  .explain p,.explain li{color:var(--muted)}.explain b{color:var(--ink)}
+  code{background:var(--canvas-bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--gold)}
+  .leg{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--muted);margin-top:8px}
+  .leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+</style>
+<link rel="stylesheet" href="../theme.css">
+<script src="../theme.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../index.html">← Back to portfolio</a></div>
+  <div class="kicker">▚ DATA AUGMENTATION · MIXUP · SVM</div>
+  <h1>Buddy mixup: pull every point toward its nearest enemy</h1>
+  <p class="lede">Ordinary mixup blends random pairs. Here every point gets a deterministic <b>buddy</b> — the nearest
+     point with a <i>different</i> label — and moves toward it by at most <b>half the distance</b>, so labels never swap.
+     Drag the mixup slider and watch the SVM decision boundary move with it.</p>
+
+  <div class="app">
+    <div class="stage">
+      <canvas id="cv" width="900" height="600"></canvas>
+      <div class="leg">
+        <span><i style="background:var(--blue)"></i>class 0</span>
+        <span><i style="background:var(--red)"></i>class 1</span>
+        <span>solid line: SVM boundary · dashed: ±1 margin · grey dashed: boundary at mixup = 0</span>
+      </div>
+      <div class="cap" id="cap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Mixup</h2>
+      <div class="big"><div class="row"><label style="width:auto;color:var(--ink)">t</label>
+        <input type="range" id="t" min="0" max="1" step="0.01" value="0.5"><span class="v" id="tv"></span></div>
+        <div style="font-size:11px;color:var(--muted)">0 = original data · 1 = every point moves half-way to its buddy</div></div>
+
+      <h2>Dataset</h2>
+      <div class="seg" id="dsSeg"><button data-d="moons" class="on">Two moons</button><button data-d="circles">Two circles</button></div>
+      <div class="row"><label>samples</label><input type="range" id="n" min="40" max="500" step="10" value="200"><span class="v" id="nv"></span></div>
+      <div class="row"><label>noise</label><input type="range" id="noise" min="0" max="0.4" step="0.01" value="0.2"><span class="v" id="noisev"></span></div>
+      <div class="row" id="facRow" style="display:none"><label>inner radius</label><input type="range" id="fac" min="0.2" max="0.9" step="0.05" value="0.5"><span class="v" id="facv"></span></div>
+      <button class="btn" id="reseed">↻ New random sample</button>
+
+      <h2>SVM (RBF kernel)</h2>
+      <div class="row"><label>C</label><input type="range" id="C" min="-2" max="3" step="0.1" value="1"><span class="v" id="Cv"></span></div>
+      <div class="row"><label>γ</label><input type="range" id="g" min="-1" max="1.7" step="0.05" value="0.3"><span class="v" id="gv"></span></div>
+
+      <h2>View</h2>
+      <label class="chk"><input type="checkbox" id="sBuddy"> buddy links</label>
+      <label class="chk"><input type="checkbox" id="sOrig" checked> original positions &amp; trails</label>
+      <label class="chk"><input type="checkbox" id="sBase" checked> boundary at t = 0</label>
+      <label class="chk"><input type="checkbox" id="sMargin" checked> margins</label>
+
+      <h2>Result</h2>
+      <div class="stats">
+        <div class="stat"><b id="stTrain">–</b><span>train accuracy (mixed)</span></div>
+        <div class="stat"><b id="stTest">–</b><span>test accuracy (clean)</span></div>
+        <div class="stat"><b id="stSV">–</b><span>support vectors</span></div>
+        <div class="stat"><b id="stMove">–</b><span>mean move</span></div>
+      </div>
+      <div class="sweep">
+        <button class="btn" id="sweep">Plot test accuracy vs t</button>
+        <canvas id="sw" width="560" height="200" style="margin-top:8px;display:none"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <h2 style="margin-top:0;font-size:18px">How it works</h2>
+    <p><b>1 · Buddies.</b> For each point <code>x<sub>i</sub></code> find <code>b(i) = argmin<sub>j: y<sub>j</sub>≠y<sub>i</sub></sub> ‖x<sub>i</sub>−x<sub>j</sub>‖</code>.
+       Brute force is O(n²). Here each class gets a <b>k-d tree</b>, and every point queries the tree of the <i>other</i> class,
+       giving O(n log n) on average (the worst case degrades but is rare for 2-D data). For high dimensions you would swap in an
+       approximate-nearest-neighbour index.</p>
+    <p><b>2 · Move.</b> <code>x′<sub>i</sub> = x<sub>i</sub> + t · ½ · (b(i) − x<sub>i</sub>)</code>, labels unchanged. At t = 1 a point stops exactly
+       at the midpoint to its buddy, so it never crosses into the other class's side of that pair. Unlike random mixup, the direction is
+       deterministic and always points to the nearest decision-relevant neighbour — near the boundary points move a little,
+       far from it they hardly move at all in absolute terms, so the clouds <i>shrink toward the margin</i> from both sides.</p>
+    <p><b>3 · Train.</b> An RBF-kernel SVM is trained on the moved points with an SMO solver (second-order working-set selection)
+       running entirely in your browser. “Test accuracy” is measured on a fresh, un-mixed sample from the same generator with the same noise.</p>
+    <p><b>Things to try.</b> Raise the noise so the classes overlap and see whether mixup tightens or distorts the boundary; use two
+       circles with a small inner radius; push C up and watch the boundary overfit single noisy points, then see how mixup changes that.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const cv=$('cv'), ctx=cv.getContext('2d');
+const W=cv.width, H=cv.height;
+
+// ---------- RNG / datasets ----------
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){let u=0,v=0;while(!u)u=r();v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function makeData(kind,n,noise,fac,seed){
+  const r=rng(seed), X=[], y=[], n1=Math.floor(n/2), n0=n-n1;
+  const lin=(k,i,span)=>k<=1?0:span*i/(k-1);
+  if(kind==='moons'){
+    for(let i=0;i<n0;i++){const a=lin(n0,i,Math.PI);X.push([Math.cos(a)+noise*gauss(r),Math.sin(a)+noise*gauss(r)]);y.push(0);}
+    for(let i=0;i<n1;i++){const a=lin(n1,i,Math.PI);X.push([1-Math.cos(a)+noise*gauss(r),1-Math.sin(a)-0.5+noise*gauss(r)]);y.push(1);}
+  }else{
+    for(let i=0;i<n0;i++){const a=lin(n0+1,i,2*Math.PI);X.push([Math.cos(a)+noise*gauss(r),Math.sin(a)+noise*gauss(r)]);y.push(0);}
+    for(let i=0;i<n1;i++){const a=lin(n1+1,i,2*Math.PI);X.push([fac*Math.cos(a)+noise*gauss(r),fac*Math.sin(a)+noise*gauss(r)]);y.push(1);}
+  }
+  return {X,y};
+}
+
+// ---------- k-d tree nearest neighbour (2-D) ----------
+function buildKD(pts,idx,depth){
+  if(!idx.length) return null;
+  const ax=depth%2; idx.sort((a,b)=>pts[a][ax]-pts[b][ax]);
+  const m=idx.length>>1;
+  return {i:idx[m],ax,l:buildKD(pts,idx.slice(0,m),depth+1),r:buildKD(pts,idx.slice(m+1),depth+1)};
+}
+function nearest(node,pts,q){
+  let best=-1,bd=Infinity;
+  (function go(nd){
+    if(!nd) return;
+    const p=pts[nd.i], dx=p[0]-q[0], dy=p[1]-q[1], d=dx*dx+dy*dy;
+    if(d<bd){bd=d;best=nd.i;}
+    const diff=q[nd.ax]-p[nd.ax], near=diff<0?nd.l:nd.r, far=diff<0?nd.r:nd.l;
+    go(near); if(diff*diff<bd) go(far);
+  })(node);
+  return best;
+}
+function computeBuddies(X,y){
+  const byClass=[[],[]]; y.forEach((c,i)=>byClass[c].push(i));
+  const trees=byClass.map(ids=>buildKD(X,ids.slice(),0));
+  return X.map((p,i)=>nearest(trees[1-y[i]],X,p));
+}
+
+// ---------- SVM (RBF) via SMO, libsvm-style ----------
+function trainSVM(X,y,C,gamma){
+  const n=X.length, ys=y.map(c=>c?1:-1);
+  const K=new Float64Array(n*n);
+  for(let i=0;i<n;i++)for(let j=i;j<n;j++){
+    const dx=X[i][0]-X[j][0],dy=X[i][1]-X[j][1], k=Math.exp(-gamma*(dx*dx+dy*dy));
+    K[i*n+j]=K[j*n+i]=k;
+  }
+  const a=new Float64Array(n), G=new Float64Array(n).fill(-1), TAU=1e-12, eps=1e-3;
+  for(let it=0;it<30000;it++){
+    let i=-1,Gmax=-Infinity,Gmax2=-Infinity;
+    for(let t=0;t<n;t++){
+      if((ys[t]===1&&a[t]<C)||(ys[t]===-1&&a[t]>0)){const v=-ys[t]*G[t]; if(v>=Gmax){Gmax=v;i=t;}}
+    }
+    let j=-1,best=Infinity;
+    for(let t=0;t<n;t++){
+      if((ys[t]===1&&a[t]>0)||(ys[t]===-1&&a[t]<C)){
+        const gv=ys[t]*G[t]; if(gv>Gmax2)Gmax2=gv;
+        const gd=Gmax+gv;
+        if(gd>0){let q=K[i*n+i]+K[t*n+t]-2*K[i*n+t]; if(q<=0)q=TAU; const od=-gd*gd/q; if(od<best){best=od;j=t;}}
+      }
+    }
+    if(i<0||j<0||Gmax+Gmax2<eps) break;
+    const Qij=ys[i]*ys[j]*K[i*n+j], oi=a[i], oj=a[j];
+    if(ys[i]!==ys[j]){
+      let q=K[i*n+i]+K[j*n+j]+2*Qij; if(q<=0)q=TAU;
+      const delta=(-G[i]-G[j])/q, diff=a[i]-a[j];
+      a[i]+=delta;a[j]+=delta;
+      if(diff>0){if(a[j]<0){a[j]=0;a[i]=diff;}} else {if(a[i]<0){a[i]=0;a[j]=-diff;}}
+      if(diff>0){if(a[i]>C){a[i]=C;a[j]=C-diff;}} else {if(a[j]>C){a[j]=C;a[i]=C+diff;}}
+    }else{
+      let q=K[i*n+i]+K[j*n+j]-2*Qij; if(q<=0)q=TAU;
+      const delta=(G[i]-G[j])/q, sum=a[i]+a[j];
+      a[i]-=delta;a[j]+=delta;
+      if(sum>C){if(a[i]>C){a[i]=C;a[j]=sum-C;}} else {if(a[j]<0){a[j]=0;a[i]=sum;}}
+      if(sum>C){if(a[j]>C){a[j]=C;a[i]=sum-C;}} else {if(a[i]<0){a[i]=0;a[j]=sum;}}
+    }
+    const dai=a[i]-oi, daj=a[j]-oj;
+    for(let k=0;k<n;k++) G[k]+=ys[k]*(ys[i]*K[i*n+k]*dai+ys[j]*K[j*n+k]*daj);
+  }
+  let ub=Infinity,lb=-Infinity,sum=0,nf=0;
+  for(let t=0;t<n;t++){
+    const yG=ys[t]*G[t];
+    if(a[t]>=C-1e-9){ if(ys[t]===-1)ub=Math.min(ub,yG); else lb=Math.max(lb,yG); }
+    else if(a[t]<=1e-9){ if(ys[t]===1)ub=Math.min(ub,yG); else lb=Math.max(lb,yG); }
+    else {sum+=yG;nf++;}
+  }
+  const rho=nf>0?sum/nf:(ub+lb)/2;
+  const sv=[],coef=[];
+  for(let t=0;t<n;t++) if(a[t]>1e-9){sv.push(X[t]);coef.push(a[t]*ys[t]);}
+  return {sv,coef,rho,gamma,
+    f(x,yv){let s=-rho;for(let k=0;k<sv.length;k++){const dx=sv[k][0]-x,dy=sv[k][1]-yv;s+=coef[k]*Math.exp(-gamma*(dx*dx+dy*dy));}return s;}};
+}
+const accuracy=(m,X,y)=>{let c=0;for(let i=0;i<X.length;i++)if((m.f(X[i][0],X[i][1])>0?1:0)===y[i])c++;return c/X.length;};
+
+// ---------- state ----------
+const S={kind:'moons',n:200,noise:0.2,fac:0.5,seed:1,t:0.5,C:10,gamma:2};
+let data,buddy,test,base=null,model=null,mixed;
+let dirty=true;
+
+// view: world -> pixel
+const VIEW={cx:0.5,cy:0.25,hw:2.4}; const sc=W/(2*VIEW.hw);
+const wx=x=>(x-VIEW.cx)*sc+W/2, wy=y=>H/2-(y-VIEW.cy)*sc;
+
+function mix(t){return data.X.map((p,i)=>{const b=data.X[buddy[i]];return [p[0]+0.5*t*(b[0]-p[0]),p[1]+0.5*t*(b[1]-p[1])];});}
+function trainAt(t){return trainSVM(mix(t),data.y,S.C,S.gamma);}
+
+function rebuildData(){
+  data=makeData(S.kind,S.n,S.noise,S.fac,S.seed*9973+17);
+  buddy=computeBuddies(data.X,data.y);
+  test=makeData(S.kind,600,S.noise,S.fac,S.seed*9973+777);
+  VIEW.cx=S.kind==='moons'?0.5:0; VIEW.cy=S.kind==='moons'?0.25:0;
+  rebuildBase();
+}
+function rebuildBase(){base=trainAt(0);}
+
+// ---------- drawing ----------
+const GN=110; // grid resolution
+const off=document.createElement('canvas'); off.width=GN; off.height=Math.round(GN*H/W);
+function fieldGrid(m){
+  const gw=off.width,gh=off.height,F=new Float32Array((gw+1)*(gh+1));
+  for(let j=0;j<=gh;j++)for(let i=0;i<=gw;i++){
+    const x=VIEW.cx+((i/gw)-0.5)*2*VIEW.hw, y=VIEW.cy-((j/gh)-0.5)*2*VIEW.hw*H/W;
+    F[j*(gw+1)+i]=m.f(x,y);
+  }
+  return F;
+}
+function paintField(F){
+  const gw=off.width,gh=off.height,o=off.getContext('2d'),img=o.createImageData(gw,gh);
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const c0=light?[47,111,224]:[110,168,254], c1=light?[214,69,69]:[255,123,114];
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){
+    const v=(F[j*(gw+1)+i]+F[j*(gw+1)+i+1]+F[(j+1)*(gw+1)+i]+F[(j+1)*(gw+1)+i+1])/4;
+    const c=v>0?c1:c0, a=Math.min(1,Math.abs(v))*0.42*255;
+    const k=(j*gw+i)*4; img.data[k]=c[0];img.data[k+1]=c[1];img.data[k+2]=c[2];img.data[k+3]=a;
+  }
+  o.putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=true; ctx.drawImage(off,0,0,W,H);
+}
+// marching squares: draw contour F=level
+function contour(F,level,style,width,dash){
+  const gw=off.width,gh=off.height, px=W/gw, py=H/gh;
+  ctx.strokeStyle=style;ctx.lineWidth=width;ctx.setLineDash(dash||[]);ctx.beginPath();
+  const at=(i,j)=>F[j*(gw+1)+i]-level;
+  const lerp=(a,b)=>a/(a-b);
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){
+    const v0=at(i,j),v1=at(i+1,j),v2=at(i+1,j+1),v3=at(i,j+1), pts=[];
+    if((v0>0)!==(v1>0)) pts.push([(i+lerp(v0,v1))*px, j*py]);
+    if((v1>0)!==(v2>0)) pts.push([(i+1)*px, (j+lerp(v1,v2))*py]);
+    if((v3>0)!==(v2>0)) pts.push([(i+lerp(v3,v2))*px, (j+1)*py]);
+    if((v0>0)!==(v3>0)) pts.push([i*px, (j+lerp(v0,v3))*py]);
+    if(pts.length===2){ctx.moveTo(pts[0][0],pts[0][1]);ctx.lineTo(pts[1][0],pts[1][1]);}
+    else if(pts.length===4){ctx.moveTo(pts[0][0],pts[0][1]);ctx.lineTo(pts[1][0],pts[1][1]);ctx.moveTo(pts[2][0],pts[2][1]);ctx.lineTo(pts[3][0],pts[3][1]);}
+  }
+  ctx.stroke();ctx.setLineDash([]);
+}
+const col=c=>c?cssVar('--red'):cssVar('--blue');
+
+function draw(){
+  mixed=mix(S.t); model=S.t===0?base:trainSVM(mixed,data.y,S.C,S.gamma);
+  ctx.clearRect(0,0,W,H);
+  const F=fieldGrid(model);
+  paintField(F);
+  if($('sBase').checked && S.t>0){ contour(fieldGrid(base),0,cssVar('--muted'),2,[7,6]); }
+  if($('sMargin').checked){ contour(F,1,cssVar('--muted'),1,[3,4]); contour(F,-1,cssVar('--muted'),1,[3,4]); }
+  contour(F,0,cssVar('--ink'),2.6);
+  const X=data.X;
+  if($('sBuddy').checked){
+    ctx.strokeStyle='rgba('+cssVar('--speckle')+',0.22)';ctx.lineWidth=1;ctx.beginPath();
+    for(let i=0;i<X.length;i++){const b=X[buddy[i]];ctx.moveTo(wx(X[i][0]),wy(X[i][1]));ctx.lineTo(wx(b[0]),wy(b[1]));}
+    ctx.stroke();
+  }
+  if($('sOrig').checked && S.t>0){
+    for(let i=0;i<X.length;i++){
+      ctx.strokeStyle=col(data.y[i]);ctx.globalAlpha=0.35;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(wx(X[i][0]),wy(X[i][1]));ctx.lineTo(wx(mixed[i][0]),wy(mixed[i][1]));ctx.stroke();
+      ctx.beginPath();ctx.arc(wx(X[i][0]),wy(X[i][1]),3,0,7);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
+  const svSet=new Set(model.sv);
+  for(let i=0;i<mixed.length;i++){
+    const p=mixed[i], isSV=svSet.has(p);
+    ctx.beginPath();ctx.arc(wx(p[0]),wy(p[1]),isSV?5:4,0,7);
+    ctx.fillStyle=col(data.y[i]);ctx.fill();
+    ctx.lineWidth=isSV?2:1;ctx.strokeStyle=isSV?cssVar('--ink'):cssVar('--canvas-bg');ctx.stroke();
+  }
+  // stats
+  $('stTrain').textContent=(100*accuracy(model,mixed,data.y)).toFixed(1)+'%';
+  $('stTest').textContent=(100*accuracy(model,test.X,test.y)).toFixed(1)+'%';
+  $('stSV').textContent=model.sv.length;
+  let mv=0;for(let i=0;i<X.length;i++)mv+=Math.hypot(mixed[i][0]-X[i][0],mixed[i][1]-X[i][1]);
+  $('stMove').textContent=(mv/X.length).toFixed(3);
+  $('cap').textContent='circled points = support vectors · faint rings & trails = original positions';
+}
+let raf=0;function schedule(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw();});}
+
+// ---------- sweep plot ----------
+let sweepRes=null;
+function drawSweep(){
+  const c=$('sw'),g=c.getContext('2d'),w=c.width,h=c.height; g.clearRect(0,0,w,h);
+  if(!sweepRes) return; c.style.display='block';
+  const L=38,R=10,T=12,B=26, ys=sweepRes.map(r=>r.acc), lo=Math.min(...ys)-0.02, hi=Math.max(...ys)+0.02;
+  const px=t=>L+t*(w-L-R), py=v=>T+(1-(v-lo)/(hi-lo))*(h-T-B);
+  g.font='11px sans-serif';g.fillStyle=cssVar('--muted');g.strokeStyle=cssVar('--line');g.lineWidth=1;
+  g.beginPath();g.moveTo(L,T);g.lineTo(L,h-B);g.lineTo(w-R,h-B);g.stroke();
+  [0,0.5,1].forEach(t=>g.fillText(t.toFixed(1),px(t)-8,h-10));
+  [lo,hi].forEach(v=>g.fillText((100*v).toFixed(0)+'%',2,py(v)+4));
+  g.fillText('mixup t',w/2-18,h-1);
+  g.strokeStyle=cssVar('--gold');g.lineWidth=2;g.beginPath();
+  sweepRes.forEach((r,i)=>{const x=px(r.t),y=py(r.acc);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();
+  g.fillStyle=cssVar('--gold');sweepRes.forEach(r=>{g.beginPath();g.arc(px(r.t),py(r.acc),2.5,0,7);g.fill();});
+  g.strokeStyle=cssVar('--blue');g.lineWidth=1.2;g.setLineDash([4,3]);g.beginPath();g.moveTo(px(S.t),T);g.lineTo(px(S.t),h-B);g.stroke();g.setLineDash([]);
+}
+function runSweep(){
+  const btn=$('sweep'); btn.disabled=true; const res=[]; let k=0;
+  (function step(){
+    if(k>20){sweepRes=res;btn.disabled=false;btn.textContent='Plot test accuracy vs t';drawSweep();return;}
+    const t=k/20,m=trainAt(t); res.push({t,acc:accuracy(m,test.X,test.y)});
+    btn.textContent='Sweeping… '+Math.round(100*k/20)+'%'; k++; setTimeout(step,0);
+  })();
+}
+
+// ---------- controls ----------
+function sync(){
+  $('tv').textContent=S.t.toFixed(2); $('nv').textContent=S.n; $('noisev').textContent=S.noise.toFixed(2);
+  $('facv').textContent=S.fac.toFixed(2); $('Cv').textContent=S.C<10?S.C.toFixed(1):S.C.toFixed(0); $('gv').textContent=S.gamma.toFixed(2);
+  $('facRow').style.display=S.kind==='circles'?'flex':'none';
+}
+function onData(){sweepRes=null;$('sw').style.display='none';rebuildData();sync();schedule();}
+function onSVM(){sweepRes=null;$('sw').style.display='none';rebuildBase();sync();schedule();}
+$('t').oninput=e=>{S.t=+e.target.value;sync();schedule();if(sweepRes)drawSweep();};
+$('n').oninput=e=>{S.n=+e.target.value;onData();};
+$('noise').oninput=e=>{S.noise=+e.target.value;onData();};
+$('fac').oninput=e=>{S.fac=+e.target.value;onData();};
+$('C').oninput=e=>{S.C=Math.pow(10,+e.target.value);onSVM();};
+$('g').oninput=e=>{S.gamma=Math.pow(10,+e.target.value);onSVM();};
+$('reseed').onclick=()=>{S.seed++;onData();};
+document.querySelectorAll('#dsSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#dsSeg button').forEach(x=>x.classList.toggle('on',x===b));S.kind=b.dataset.d;onData();});
+['sBuddy','sOrig','sBase','sMargin'].forEach(id=>$(id).onchange=schedule);
+$('sweep').onclick=runSweep;
+window.addEventListener('themechange',()=>{draw();drawSweep();});
+
+$('C').value=Math.log10(S.C);$('g').value=Math.log10(S.gamma);
+rebuildData();sync();draw();
+window.__mixup={computeBuddies,makeData,trainSVM}; // for debugging
+})();
+</script>
+</body>
+</html>

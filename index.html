@@ -128,14 +128,15 @@
       <div class="links"><span>Open demo →</span><span class="code">View code</span></div>
     </a>
 
-    <!-- TEXT SUMMARY -->
-    <a class="card" href="project4-text-summary/index.html">
+    <!-- BUDDY MIXUP -->
+    <a class="card" href="project4-mixup/index.html">
       <div class="thumb" id="thumb4"></div>
-      <span class="tag">ML · CORESETS</span>
-      <h3>Summarise a pile of messages with k-center</h3>
-      <p>Embed texts (TF-IDF), then greedy <b>k-center</b> keeps picking the message least like everything
-         chosen so far — a coreset of maximally diverse representatives, plus keywords. Paste your own text.</p>
-      <div class="proves">Proves: embeddings · greedy k-center (2-approx) · turning an algorithm into a tool</div>
+      <span class="tag">ML · DATA AUGMENTATION · SVM</span>
+      <h3>Buddy mixup: pull every point toward its nearest enemy</h3>
+      <p>Every point gets a deterministic <b>buddy</b> — the nearest point of another class, found with a k-d tree —
+         and moves up to half-way toward it. Drag the mixup strength from 0 to 1 on two-moons or two-circles data and
+         watch a live-trained <b>SVM decision boundary</b> reshape itself.</p>
+      <div class="proves">Proves: k-d tree nearest-neighbour search · mixup · SVM (SMO) written from scratch · live decision boundaries</div>
       <div class="links"><span>Open demo →</span><span class="code">View code</span></div>
     </a>
 
@@ -270,17 +271,28 @@ function renderThumbs(){
     g.fillStyle=ACC;for(let i=0;i<90;i++){const t=2*Math.PI*Math.random(),fr=0.4+Math.random()*0.45;
       g.beginPath();g.arc(cx+Math.cos(t)*(Rix+(Rox-Rix)*fr),cy+Math.sin(t)*(Riy+(Roy-Riy)*fr),1.7,0,7);g.fill();}
   });
-  // thumb4: scattered messages with k-center picks ringed
+  // thumb4: two moons whose points slide toward their nearest enemy, plus an SVM boundary
   mk('thumb4',(g,W,H)=>{
     g.fillStyle=BG; g.fillRect(0,0,W,H);
-    const cols=[ACC,ACC2,'#ffd479',WARN];
-    const centers=[[W*0.25,H*0.35],[W*0.72,H*0.30],[W*0.40,H*0.74],[W*0.78,H*0.70]];
-    centers.forEach((c,ci)=>{for(let i=0;i<12;i++){const x=c[0]+(Math.random()-0.5)*W*0.22,y=c[1]+(Math.random()-0.5)*H*0.32;
-      g.strokeStyle='rgba('+ink+',0.10)';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(c[0],c[1]);g.stroke();
-      g.fillStyle=cols[ci];g.globalAlpha=0.8;g.beginPath();g.arc(x,y,2.4,0,7);g.fill();g.globalAlpha=1;}});
-    centers.forEach((c,ci)=>{g.beginPath();g.arc(c[0],c[1],7,0,7);g.fillStyle=cols[ci];g.fill();
-      g.lineWidth=2.4;g.strokeStyle=BG;g.stroke();
-      g.fillStyle=BTNINK;g.font='bold 10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(ci+1,c[0],c[1]);});
+    const sx=W*0.20, cx=W*0.5, cy=H*0.56, r=H*0.34;
+    const A=[],B=[];
+    for(let i=0;i<16;i++){const a=Math.PI*i/15;
+      A.push([cx-r*0.5+Math.cos(a)*r, cy-Math.sin(a)*r*0.9+(Math.random()-.5)*5]);
+      B.push([cx+r*0.5-Math.cos(a)*r, cy+Math.sin(a)*r*0.9-r*0.45+(Math.random()-.5)*5]);}
+    // decision boundary (wavy line between the moons)
+    g.strokeStyle=INK;g.lineWidth=2;g.beginPath();
+    for(let i=0;i<=40;i++){const a=Math.PI*i/40, x=cx-r*0.5+Math.cos(a)*r*0.78, y=cy-Math.sin(a)*r*0.9*0.78+r*0.0;
+      i?g.lineTo(x,y):g.moveTo(x,y);}
+    g.stroke();
+    // arrows to buddy (midpoint) then points
+    const pts=[[A,ACC],[B,WARN]], other={0:B,1:A};
+    pts.forEach(([P,c],k)=>P.forEach(p=>{
+      let best=null,bd=1e9;other[k].forEach(q=>{const d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<bd){bd=d;best=q;}});
+      g.strokeStyle='rgba('+ink+',0.18)';g.lineWidth=1;g.beginPath();g.moveTo(p[0],p[1]);
+      g.lineTo(p[0]+0.5*(best[0]-p[0]),p[1]+0.5*(best[1]-p[1]));g.stroke();
+      g.fillStyle=c;g.beginPath();g.arc(p[0],p[1],2.6,0,7);g.fill();}));
+    g.fillStyle=MUTED;g.font='10px sans-serif';g.textAlign='left';g.textBaseline='alphabetic';
+    g.fillText('point → buddy (≤ ½ way)',8,H-7);
   });
   // thumb3: climbing bound toward true minimum
   mk('thumb3',(g,W,H)=>{
