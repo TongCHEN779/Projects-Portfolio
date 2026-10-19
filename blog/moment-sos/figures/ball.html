@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Every dual point is an upper bound</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #top{display:flex;flex-wrap:wrap;gap:14px;padding:12px 16px 2px}
+  canvas{display:block;max-width:100%}
+  #panel{padding:6px 16px 12px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px;margin:3px 0}
+  .row label{min-width:150px;color:#444}input[type=range]{flex:1}
+  .val{font-family:monospace;color:#c0392b;min-width:44px;text-align:right}
+  #readout{font-family:monospace;margin-top:8px;line-height:1.55}
+  .k{color:#c0392b;font-weight:bold}.g{color:#1e8e5a;font-weight:bold}
+</style></head><body>
+<div id="top"><canvas id="heat" width="330" height="270"></canvas><canvas id="fx" width="330" height="270"></canvas></div>
+<div id="panel">
+  <div class="row"><label>&sigma; (constant term)</label><input id="s" type="range" min="0" max="3" step="0.01" value="1.8"><span class="val" id="sv"></span></div>
+  <div class="row"><label>q (free Gram entry)</label><input id="q" type="range" min="-1" max="2" step="0.01" value="0.9"><span class="val" id="qv"></span></div>
+  <div id="readout"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id), S=$('s'), Q=$('q');
+// maximize f(x)=x s.t. 1-x^2>=0, r=1: Q0=[[s-q,-1/2],[-1/2,q]], Q1=(q), s0=2, s1=1, B=1
+function lam(s,q){const a=s-q,d=q,b=-0.5,t=(a+d)/2,r=Math.hypot((a-d)/2,b);return [t-r,t+r];}
+function U(s,q){const l=lam(s,q)[0];return s+2*Math.max(0,-l)+1*Math.max(0,-q);}
+const SM=[0,3],QM=[-1,2];
+function heat(){
+  const c=$('heat'),g=c.getContext('2d'),w=c.width,h=c.height,L=44,R=8,T=18,B=34,pw=w-L-R,ph=h-T-B;
+  g.clearRect(0,0,w,h);const img=g.createImageData(pw,ph);
+  for(let j=0;j<ph;j++)for(let i=0;i<pw;i++){
+    const s=SM[0]+(SM[1]-SM[0])*i/pw,q=QM[1]-(QM[1]-QM[0])*j/ph,u=U(s,q),t=Math.min(1,Math.log(1+(u-1)*2)/2.4);
+    const k=(j*pw+i)*4;img.data[k]=Math.round(255*(1-0.65*t+ (t<0.05?-60:0)));img.data[k+1]=Math.round(235-150*t);img.data[k+2]=Math.round(250-60*t- (t<0.05?150:0));img.data[k+3]=255;}
+  g.putImageData(img,L,T);
+  g.strokeStyle='#999';g.strokeRect(L,T,pw,ph);
+  const X=s=>L+(s-SM[0])/(SM[1]-SM[0])*pw,Y=q=>T+(QM[1]-q)/(QM[1]-QM[0])*ph;
+  g.fillStyle='#1e8e5a';g.beginPath();g.arc(X(1),Y(0.5),5,0,7);g.fill();
+  g.fillStyle='#555';g.font='11px sans-serif';g.fillText('optimum (1, ½)',X(1)+8,Y(0.5)-6);
+  g.fillStyle='#c0392b';g.beginPath();g.arc(X(+S.value),Y(+Q.value),6,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
+  g.fillStyle='#444';g.font='12px sans-serif';g.textAlign='center';g.fillText('σ',L+pw/2,h-8);
+  g.save();g.translate(12,T+ph/2);g.rotate(-Math.PI/2);g.fillText('q',0,0);g.restore();
+  g.textAlign='right';[0,1,2,3].forEach(v=>g.fillText(v,X(v)+4,h-20));
+  g.textAlign='right';[-1,0,1,2].forEach(v=>g.fillText(v,L-4,Y(v)+4));
+  g.textAlign='left';g.fillStyle='#444';g.fillText('U(σ,q)  — darker = looser',L,12);
+}
+function fx(){
+  const s=+S.value,q=+Q.value,u=U(s,q),c=$('fx'),g=c.getContext('2d'),w=c.width,h=c.height,L=40,R=10,T=18,B=34,pw=w-L-R,ph=h-T-B;
+  g.clearRect(0,0,w,h);
+  const X=x=>L+(x+1)/2*pw, ymax=3.2, Y=v=>T+(1-(v+1)/(ymax+1))*ph;
+  g.strokeStyle='#ddd';g.beginPath();[-1,0,1,2,3].forEach(v=>{g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));});g.stroke();
+  // certificate polynomial sigma - f - ... evaluates to v^T Q0 v + z^2 Q1 g  >= -(shift terms)
+  g.strokeStyle='#2f6fe0';g.lineWidth=2.4;g.beginPath();g.moveTo(X(-1),Y(-1));g.lineTo(X(1),Y(1));g.stroke();
+  g.strokeStyle='#c0392b';g.lineWidth=2;g.setLineDash([6,4]);g.beginPath();g.moveTo(L,Y(u));g.lineTo(L+pw,Y(u));g.stroke();g.setLineDash([]);
+  // lower envelope of sigma - (v^TQ0v + q(1-x^2)) is f; show sigma - (v^T Q0 v + q g) = x  -> plot v^T Q0 v + q g = sigma - x
+  g.fillStyle='#444';g.font='12px sans-serif';g.textAlign='left';
+  g.fillText('f(x)=x on [−1,1]  vs  certified bound U',L,12);
+  g.fillStyle='#2f6fe0';g.fillText('f(x)',X(-0.9),Y(-0.9)-6);
+  g.fillStyle='#c0392b';g.fillText('U = '+u.toFixed(3),X(-0.95),Y(u)-6);
+  g.fillStyle='#444';g.textAlign='center';[-1,0,1].forEach(v=>g.fillText(v,X(v),h-18));g.fillText('x',L+pw/2,h-4);
+  g.textAlign='right';[-1,0,1,2,3].forEach(v=>g.fillText(v,L-5,Y(v)+4));
+}
+function draw(){
+  const s=+S.value,q=+Q.value;$('sv').textContent=s.toFixed(2);$('qv').textContent=q.toFixed(2);
+  const l=lam(s,q),u=U(s,q);
+  $('readout').innerHTML='Q<sub>0</sub> = [[σ−q, −½],[−½, q]] with eigenvalues '+l.map(v=>v.toFixed(3)).join(', ')+' &nbsp;|&nbsp; Q<sub>1</sub> = (q)<br>'+
+   'U = σ + 2·[−λ<sub>min</sub>(Q<sub>0</sub>)]<sub>+</sub> + 1·[−q]<sub>+</sub> = <span class="'+(u<1.001?'g':'k')+'">'+u.toFixed(4)+'</span> &nbsp; (true maximum: 1) &nbsp;<b>always ≥ 1</b>';
+  heat();fx();
+}
+S.oninput=Q.oninput=draw;draw();
+</script></body></html>

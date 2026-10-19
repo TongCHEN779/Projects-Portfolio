@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entropic smoothing sandwich</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  canvas{display:block;width:100%;height:330px}
+  #panel{padding:6px 16px 12px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px}.row label{min-width:190px;color:#444}input[type=range]{flex:1}
+  .val{font-family:monospace;color:#c0392b;min-width:60px;text-align:right}
+  #readout{font-family:monospace;margin-top:6px;line-height:1.5}
+</style></head><body>
+<canvas id="c" width="760" height="330"></canvas>
+<div id="panel">
+  <div class="row"><label>smoothing &eta; (log scale)</label><input id="e" type="range" min="-3" max="0" step="0.02" value="-1"><span class="val" id="ev"></span></div>
+  <div id="readout"></div>
+</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),E=document.getElementById('e');
+// Q(t) = diag(t-0.2, 0.6-t, 0.1+0.3t): three eigenvalues; U(t)=[-lmin]_+, U_eta = eta*log(1+sum exp(-lam/eta))
+const lam=t=>[t-0.2,0.6-t,0.1+0.3*t];
+const hard=t=>Math.max(0,-Math.min(...lam(t)));
+const soft=(t,eta)=>{const l=lam(t),m=Math.min(0,...l);let s=Math.exp(-(0-m)/eta);l.forEach(v=>s+=Math.exp(-(v-m)/eta));return -m+eta*Math.log(s);};
+function draw(){
+  const eta=Math.pow(10,+E.value);document.getElementById('ev').textContent=eta.toFixed(3);
+  const w=cv.width,h=cv.height,L=46,R=14,T=18,B=34,pw=w-L-R,ph=h-T-B;g.clearRect(0,0,w,h);
+  const t0=-0.6,t1=1.4,ymax=1.0,X=t=>L+(t-t0)/(t1-t0)*pw,Y=v=>T+(1-v/ymax)*ph;
+  g.strokeStyle='#eee';g.beginPath();[0,0.25,0.5,0.75,1].forEach(v=>{g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));});g.stroke();
+  const bias=eta*Math.log(3+1);
+  // band U..U+bias
+  g.fillStyle='rgba(47,111,224,0.10)';g.beginPath();
+  for(let i=0;i<=200;i++){const t=t0+(t1-t0)*i/200;i?g.lineTo(X(t),Y(Math.min(ymax,hard(t)+bias))):g.moveTo(X(t),Y(Math.min(ymax,hard(t)+bias)));}
+  for(let i=200;i>=0;i--){const t=t0+(t1-t0)*i/200;g.lineTo(X(t),Y(hard(t)));}g.fill();
+  const line=(fn,col,wd)=>{g.strokeStyle=col;g.lineWidth=wd;g.beginPath();for(let i=0;i<=300;i++){const t=t0+(t1-t0)*i/300,y=Math.min(ymax,fn(t));i?g.lineTo(X(t),Y(y)):g.moveTo(X(t),Y(y));}g.stroke();};
+  line(hard,'#222',2.2);line(t=>soft(t,eta),'#c0392b',2.4);
+  g.fillStyle='#444';g.font='12px sans-serif';g.textAlign='center';g.fillText('dual parameter θ (one coordinate)',L+pw/2,h-6);
+  g.textAlign='right';[0,0.5,1].forEach(v=>g.fillText(v,L-5,Y(v)+4));
+  g.textAlign='left';g.fillStyle='#222';g.fillText('U(θ) = [−λ_min(Q(θ))]₊  (kinks)',L+8,T+12);
+  g.fillStyle='#c0392b';g.fillText('U_η(θ) = η log(1 + tr e^{−Q/η})  (smooth, still a valid bound)',L+8,T+28);
+  g.fillStyle='#2f6fe0';g.fillText('shaded: U ≤ U_η ≤ U + η log(s+1)',L+8,T+44);
+  let mx=0;for(let i=0;i<=300;i++){const t=t0+(t1-t0)*i/300;mx=Math.max(mx,soft(t,eta)-hard(t));}
+  document.getElementById('readout').innerHTML='bias bound η log(s+1) = <b>'+bias.toFixed(4)+'</b> &nbsp;|&nbsp; largest observed gap U<sub>η</sub>−U = <b>'+mx.toFixed(4)+'</b> &nbsp;|&nbsp; gradient Lipschitz constant ~ 1/η = <b>'+(1/eta).toFixed(1)+'</b>';
+}
+E.oninput=draw;draw();
+</script></body></html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anytime-Certified Bounds for Moment-SOS</title>
+<meta name="description" content="A first-order spectral dual for the moment-SOS hierarchy: every iterate is a rigorous bound, memory is O(s^2) instead of O(s^4), and order-2 MAX-CUT is certified optimal up to 60 nodes where interior point runs out of memory.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']], macros: { R:'\\mathbb{R}', Sym:'\\mathbb{S}', lmin:'\\lambda_{\\min}', lmax:'\\lambda_{\\max}', pos:['[#1]_+',1], tr:'\\operatorname{tr}' } },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --accent:#2f6fe0;
+    --bg:#ffffff; --soft:#f6f7f9;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased;font-size:17px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .backbar{max-width:1100px;margin:0 auto;padding:18px 24px;font-size:14px}
+  header.hero{border-bottom:1px solid var(--line);background:var(--soft)}
+  .hero .inner{max-width:760px;margin:0 auto;padding:46px 24px 34px}
+  .kicker{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:34px;line-height:1.2;margin:12px 0 14px;letter-spacing:-0.4px}
+  .dek{font-size:18px;color:var(--muted);margin:0}
+  .byline{margin-top:20px;font-size:14px;color:var(--muted);display:flex;gap:26px;flex-wrap:wrap}
+  .byline b{color:var(--ink);font-weight:600}
+  .layout{max-width:1100px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:1000px){.layout{grid-template-columns:220px minmax(0,760px);gap:40px;justify-content:center}}
+  nav.toc{font-size:14px}
+  @media(min-width:1000px){nav.toc{position:sticky;top:24px;align-self:start;padding-top:44px}}
+  nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border:none;margin:0 0 10px;padding:0}
+  nav.toc ul{list-style:none;margin:0;padding:0}
+  nav.toc li{margin:6px 0}
+  nav.toc a{color:var(--muted)}
+  nav.toc a:hover{color:var(--accent)}
+  article{padding:44px 0 20px;min-width:0}
+  article h2{font-size:24px;margin:44px 0 14px;padding-top:14px;border-top:1px solid var(--line);letter-spacing:-0.3px}
+  article h2:first-child{border-top:none;padding-top:0;margin-top:0}
+  article h3{font-size:18px;margin:30px 0 10px}
+  article h3{font-size:18px;margin:30px 0 10px}
+  p{margin:0 0 18px}
+  article ol,article ul{margin:0 0 18px;padding-left:24px}
+  article li{margin:5px 0}
+  sup.cite{font-size:12px;color:var(--accent);font-weight:600;padding-left:1px}
+  sup.cite a{color:var(--accent)}
+  blockquote{margin:22px 0;padding:14px 20px;background:var(--soft);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0}
+  blockquote p{margin:6px 0}
+  figure{margin:26px 0}
+  figcaption{font-size:14px;color:var(--muted);text-align:center;margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+  th{background:var(--soft)}
+  td:first-child,th:first-child{text-align:left}
+  code{background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:14px}
+  .refs{max-width:760px;margin:0 auto;padding:10px 24px 70px}
+  .refs h2{font-size:20px;border-top:1px solid var(--line);padding-top:22px}
+  .refs ol{list-style:none;margin:0;padding:0;font-size:14px;color:var(--muted)}
+  .refs li{margin:9px 0;line-height:1.5}
+  .refs .rnum{color:var(--accent);font-weight:600;margin-right:6px}
+  .refs em{color:var(--ink);font-style:italic}
+  /* wide figures break out of the text column on large screens */
+  @media(min-width:1000px){figure:has(iframe){width:calc(100% + 120px);margin-left:-60px}}
+</style>
+</head>
+<body>
+  <div class="backbar"><a href="../../index.html">&larr; Back to portfolio</a></div>
+  <header class="hero">
+    <div class="inner">
+      <div class="kicker">Interactive Article &middot; Polynomial Optimization</div>
+      <h1>Anytime-Certified Bounds for the Moment–SOS Hierarchy</h1>
+      <p class="dek">Interior-point solvers run out of memory, not time, on the moment–SOS hierarchy. A spectral dual reformulation turns it into an eigenvalue problem where <em>every</em> iterate is a rigorous bound and memory is $O(s^2)$ instead of $O(s^4)$ — enough to certify order-2 MAX-CUT optimality on graphs of up to 60 nodes. We also report where it loses to the alternatives.</p>
+      <div class="byline">
+        <span><b>Tong Chen</b><br>University of Copenhagen</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#setting">Setting and Notation</a></li>
+<li><a href="#dual">Gram Certificates and the Spectral Dual</a></li>
+<li><a href="#oracle">Formal Lagrangian and the Oracle</a></li>
+<li><a href="#algorithms">Smoothing, Complexity, Certification</a></li>
+<li><a href="#experiments">Experiments</a></li>
+<li><a href="#nn">ReLU Networks</a></li>
+<li><a href="#software">Software: polyopt</a></li>
+<li><a href="#discussion">Discussion and Limitations</a></li>
+<li><a href="#conclusion">Outlook</a></li>
+<li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+    <article>
+
+<h2 id="introduction">Introduction</h2>
+<p>Polynomial optimization — maximizing a polynomial over a basic semialgebraic set — is NP-hard, yet admits the convergent moment–SOS hierarchy of Lasserre <sup class="cite">[<a href="#ref-lasserre2001">1</a>]</sup> (see also <sup class="cite">[<a href="#ref-parrilo2003">2</a>]</sup><sup class="cite">[<a href="#ref-laurent2009">3</a>]</sup><sup class="cite">[<a href="#ref-nie2023">4</a>]</sup>). Relaxation order $r$ yields an SDP whose moment matrix has size $\binom{n+r}{r}$ and which involves $\binom{n+2r}{2r}$ moment variables. The SDP is dense and highly structured, but general interior-point solvers exploit this structure poorly: their cost is governed by the <em>number of moments</em> $m\sim s^2$, not by the matrix size $s$, and they must store an $m\times m$ matrix. For MAX-CUT on $n=40$ nodes at order $r=2$, the moment matrix is only $821\times 821$ but $m=102{,}091$; the interior-point solver MOSEK was killed by the operating system during the optimizer phase on a 36&nbsp;GiB machine.</p>
+<p>So interior-point solvers run out of <strong>memory</strong>, not time, long before the hierarchy is exhausted. This article describes a first-order alternative with two properties that interior-point methods do not have:</p>
+<ul>
+<li><strong>Anytime certificates.</strong> <em>Every</em> iterate yields a rigorous upper bound on the optimum. Stop whenever you like and you still hold a proof.</li>
+<li><strong>$O(s^2)$ memory</strong> instead of $O(s^4)$: one eigen-decomposition per block and a sparse back-substitution.</li>
+</ul>
+<p>We are equally explicit about what the method does <em>not</em> do: it is slower than interior-point on small problems, less accurate, and slower than uncertified first-order baselines. The question is what the certificate costs and what it buys.</p>
+
+<p><strong>Related work.</strong> Sparsity exploitation (correlative <sup class="cite">[<a href="#ref-waki2006">5</a>]</sup><sup class="cite">[<a href="#ref-lasserre2006">6</a>]</sup>, term <sup class="cite">[<a href="#ref-wang2021tssos">7</a>]</sup><sup class="cite">[<a href="#ref-wang2022cstssos">8</a>]</sup>) shrinks the blocks and is complementary to our approach. First-order and low-rank solvers for general SDPs include ADMM-type methods <sup class="cite">[<a href="#ref-odonoghue2016">9</a>]</sup><sup class="cite">[<a href="#ref-zheng2020">10</a>]</sup>, sketching-based conditional gradient <sup class="cite">[<a href="#ref-yurtsever2021">11</a>]</sup>, and Burer–Monteiro factorizations <sup class="cite">[<a href="#ref-burer2003">12</a>]</sup>, recently also tailored to moment–SOS relaxations <sup class="cite">[<a href="#ref-hou2025">13</a>]</sup><sup class="cite">[<a href="#ref-wang2023manisdp">14</a>]</sup>. The reduction of SDPs with a trace bound to the minimization of a largest eigenvalue is classical <sup class="cite">[<a href="#ref-helmberg2000">15</a>]</sup><sup class="cite">[<a href="#ref-lewis1996">16</a>]</sup>; for the moment–SOS hierarchy it was exploited through the <em>constant trace property</em> by Mai, Lasserre, Magron and Wang <sup class="cite">[<a href="#ref-mai2022ctp">17</a>]</sup><sup class="cite">[<a href="#ref-mai2023spectral">18</a>]</sup>, who solve the resulting eigenvalue problem with bundle methods. Dathathri et al. <sup class="cite">[<a href="#ref-dathathri2020">19</a>]</sup> introduced the diagonal-domination certificate for neural-network verification.</p>
+<p><strong>Contributions.</strong></p>
+<ol type="a">
+<li><strong>A unified Gram-matrix dual with a certificate theorem.</strong> Inequalities, equalities, cliques and Boolean variables are handled uniformly, and every parameter value certifies an upper bound. Non-constant traces are handled by box bounds, with automatically computed localizing weights $B_i$.</li>
+<li><strong>Exactness without a duality gap:</strong> the infimum of the certified bound is the value of the moment relaxation with valid trace cuts; for Boolean problems it equals the Lasserre value.</li>
+<li><strong>Automatic assembly.</strong> The Gram matrices are the Hessian blocks of a formal Lagrangian; every oracle call costs one eigen-decomposition per block.</li>
+<li><strong>Smoothing with complexity guarantees:</strong> a sandwich bound, a gradient with Lipschitz constant $O(1/\eta)$, and an $O(1/\varepsilon)$ iteration bound for accelerated gradient.</li>
+<li><strong>A certification corollary:</strong> for integer-valued objectives the optimum is bounded by $\lfloor U\rfloor$; with a feasible point this proves <em>optimality</em>.</li>
+<li><strong>A smoothing-free dual augmented-Lagrangian solver</strong> for problems with many constraint blocks.</li>
+<li><strong>Honest experiments:</strong> agreement with MOSEK on 24 problem–order pairs, scaling up to order 3 and $n=60$, and a comparison with SCS, CGAL and Burer–Monteiro.</li>
+<li><strong>Second-order relaxations of ReLU-network problems</strong> and the PyTorch package <code>polyopt</code>.</li>
+</ol>
+
+<h2 id="setting">Setting and Notation</h2>
+<p>We consider
+$$f^\star=\max_{x\in K} f(x),\qquad K=\{x\in\R^n:\ g_i(x)\ge0\ (i=1,\dots,p),\ h_j(x)=0\ (j=1,\dots,q)\}.$$
+We assume the box $K\subseteq[-1,1]^n$ (no loss of generality after rescaling). In the <em>Boolean case</em> $K\subseteq\{\pm1\}^n$ and all computations are done modulo the ideal $\langle x_i^2-1\rangle$: monomials are squarefree and products are symmetric differences of supports.</p>
+<p><strong>Cliques.</strong> Let $I_1,\dots,I_N\subseteq[n]$ be index sets (a single clique $I_1=[n]$ is the dense case) such that every $g_i,h_j$ lies in some clique and every monomial of $f$ is a product of two monomials of one clique. For each clique $v_k$ is the vector of monomials in $x_{I_k}$ of degree $\le r$ and $s_k=|v_k|$. For an inequality $g_i$, $z_i$ is the vector of monomials of degree $\le r-\lceil\deg g_i/2\rceil$ and $s_i=|z_i|$. We require $\deg f\le2r$. Let
+$$B_i:=\sum_{\alpha:\,c_\alpha>0}c_\alpha+\sum_{\alpha:\,c_\alpha<0,\ \alpha\ \text{not even}}|c_\alpha|\ \ \ge \sup_{[-1,1]^n}g_i\qquad\text{for }g_i=\sum_\alpha c_\alpha x^\alpha .$$
+This is a valid, automatable upper bound on $\sup g_i$ over the box, sharper than the usual $\sum_\alpha|c_\alpha|$; e.g. $B=1$ for $g=1-x^2$.</p>
+<p><strong>Moment relaxation.</strong> For a vector $y$ indexed by monomials, $L_y$ is the linear functional with $L_y(x^\gamma)=y_\gamma$; $M_k(y)=L_y(v_kv_k^\top)$ and $M_i^{\rm loc}(y)=L_y(g_iz_iz_i^\top)$ are the moment and localizing matrices. The order-$r$ Lasserre relaxation $\rho_r$ maximizes $L_y(f)$ subject to $y_0=1$, $M_k(y)\succeq0$, $M^{\rm loc}_i(y)\succeq0$ and $L_y(h_jx^\mu)=0$. Let $\rho_r^{\rm tr}$ be the same problem with the additional <em>trace cuts</em>
+$$\tr M_k(y)\le s_k,\qquad \tr M_i^{\rm loc}(y)\le s_iB_i,$$
+which hold for every moment vector of a probability measure on $K$ because $|x^\alpha|\le1$ on the box and $0\le g_i\le B_i$ on $K$. Hence $f^\star\le\rho_r^{\rm tr}\le\rho_r$. In the Boolean case $M_k(y)_{aa}=y_0=1$, so $\tr M_k=s_k$ <em>identically</em> (“constant trace”) and the first cut is redundant.</p>
+
+<h2 id="dual">Gram Certificates and the Spectral Dual</h2>
+<blockquote>
+<p><strong>Definition (dual point).</strong> A dual point $\theta$ consists of a scalar $\sigma$, symmetric matrices $Q_{0,k}\in\Sym^{s_k}$, $Q_i\in\Sym^{s_i}$ — <em>not</em> required to be positive semidefinite — and polynomials $p_j$ such that, modulo the ideal in the Boolean case,
+$$\sigma-f \;=\; \sum_{k}v_k^\top Q_{0,k}v_k+\sum_{i}\big(z_i^\top Q_iz_i\big)g_i+\sum_jp_jh_j .$$</p>
+</blockquote>
+<p>With $\Phi(Q)=\pos{-\lmin(Q)}$, define the <em>spectral bound</em>
+$$U(\theta)=\sigma+\sum_ks_k\,\Phi_k(Q_{0,k})+\sum_is_iB_i\,\pos{-\lmin(Q_i)},$$
+where $\Phi_k(Q)=-\lmin(Q)$ (without the positive part) if clique $k$ is Boolean.</p>
+<blockquote>
+<p><strong>Theorem 1 (certificate).</strong> For every dual point $\theta$ and every $x\in K$, $f(x)\le U(\theta)$. Hence $f^\star\le U(\theta)$.</p>
+</blockquote>
+<p><em>Proof.</em> Fix $x\in K$ and $\lambda_k=\Phi_k(Q_{0,k})$. Then $Q_{0,k}+\lambda_kI\succeq0$, so $v_k^\top Q_{0,k}v_k\ge-\lambda_k\|v_k\|^2$. On the box $\|v_k(x)\|^2\le s_k$, and in the Boolean case it equals $s_k$ exactly, so $v_k^\top Q_{0,k}v_k\ge-\lambda_ks_k$ holds even if $\lambda_k<0$. For an inequality, put $\mu_i=\pos{-\lmin(Q_i)}$; since $g_i(x)\in[0,B_i]$ and $\|z_i\|^2\le s_i$, $(z_i^\top Q_iz_i)g_i\ge-\mu_is_iB_i$. Equality terms vanish on $K$. Evaluating the identity at $x$ gives $\sigma-f(x)\ge-\sum_ks_k\lambda_k-\sum_is_iB_i\mu_i$. $\square$</p>
+<p>The dual point is <em>free</em>: no PSD constraint on any $Q$. The price of non-PSD is repaid by a multiple of the identity, whose size is the (smallest) eigenvalue violation — that is the whole spectral bound. Play with the simplest example: maximize $x$ subject to $1-x^2\ge0$ at order $1$. Here $v=(1,x)$, $z=1$, $B=1$, $s_0=2$, $s_1=1$, and matching coefficients gives
+$$Q_0=\begin{pmatrix}\sigma-q&-1/2\\-1/2&q\end{pmatrix},\qquad Q_1=(q),$$
+with one free scalar $q$. At $q=\tfrac12$, $\sigma=1$ both matrices are PSD, no shift is needed, and $U=1=f^\star$.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/ball.html" width="100%" height="560"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Every dual point is an upper bound"></iframe>
+  <figcaption>Move $(\sigma,q)$: the bound $U$ is never below the true maximum $1$, and touches it exactly at $(\sigma,q)=(1,\tfrac12)$.</figcaption>
+</figure>
+
+<blockquote>
+<p><strong>Theorem 2 (exactness; no duality gap).</strong> Under the box assumption and $K\ne\emptyset$,
+$$\inf_\theta U(\theta)=\rho_r^{\rm tr},\qquad f^\star\le\rho_r^{\rm tr}\le\rho_r .$$
+The primal problem $\rho_r^{\rm tr}$ attains its maximum. In the Boolean case $\rho_r^{\rm tr}=\rho_r$. If the trace cuts are inactive at some optimal solution of $\rho_r$, then $\rho_r^{\rm tr}=\rho_r$. If the quadratic module is Archimedean, $\rho_r^{\rm tr}\downarrow f^\star$ as $r\to\infty$ (for cliques, under running intersection <sup class="cite">[<a href="#ref-lasserre2006">6</a>]</sup>).</p>
+</blockquote>
+<p><em>Proof idea.</em> Write $\rho_r^{\rm tr}$ as a conic program, attach multipliers $\sigma$, $Q$'s and $t\ge0$ to $y_0=1$, the PSD blocks and the cuts, and eliminate $y$: the dual is $\min\sigma+\sum_k s_kt_k+\sum_is_iB_it_i$ subject to the coefficient identity and $Q+tI\succeq0$. For fixed $(\sigma,Q,p)$ the optimal $t$ is exactly the shift in $U$. The primal set is compact (the cuts bound the diagonals, $|y_{a+b}|\le\sqrt{y_{2a}y_{2b}}$ bounds the rest) and the dual strictly feasible, so conic duality <sup class="cite">[<a href="#ref-bental2001">20</a>]</sup> gives zero gap.</p>
+<p><strong>What the theorem says, and does not.</strong> $\inf_\theta U$ is not necessarily attained, and $\rho_r^{\rm tr}$ need not equal $\rho_r$ for non-Boolean problems; the cuts can only help. In all 24 problem–order pairs tested, they did not change the optimal value. The reformulation of trace-bounded SDPs as largest-eigenvalue minimization is classical <sup class="cite">[<a href="#ref-helmberg2000">15</a>]</sup><sup class="cite">[<a href="#ref-mai2023spectral">18</a>]</sup>; what Theorems 1–2 add is that it applies to the <em>whole</em> sparse moment–SOS hierarchy, including localizing blocks and equalities, with box-derived weights instead of a constant-trace assumption. A weighted-domination variant (shifting by $tD$ for a positive diagonal $D$) is also valid but was not exploited in the experiments.</p>
+
+<h2 id="oracle">Formal Lagrangian and the Oracle</h2>
+<p><strong>Free parametrization of the Gram freedom.</strong> Every polynomial $q$ supported on the products of basis monomials has a family of Gram matrices: the set of $(Q_{0,k})_k$ with $\sum_kv_k^\top Q_{0,k}v_k=q$ is an affine space $\{Q^{\rm sp}(q)+\Theta\}$, where $Q^{\rm sp}$ spreads each coefficient $q_\gamma$ evenly over the index pairs whose product is $x^\gamma$, and $\Theta$ ranges over <em>zero-sum</em> perturbations of each such group. Consequently every dual point is parametrized by $\theta=(\sigma,\Theta,u,p)$ with $u$ the entries of the localizing Gram matrices and $p$ the equality multipliers, and $\theta\mapsto(Q_{0,k},Q_i)$ is <em>affine</em>. Overlapping cliques share index-pair groups, which is how moment consistency across cliques (the sparse relaxation) enters.</p>
+<p><strong>Formal Lagrangian.</strong> Introduce pseudo-vectors $y^k\in\R^{s_k}$, $z^i\in\R^{s_i}$ and replace every monomial $x^{a+b}$ in the constraint identities by the product $y_ay_b$ (resp. $z_az_b$). The result is
+$$F(y,z;\theta)=\sigma-\sum_k y^{k\top}Q_{0,k}(\theta)y^k-\sum_iz^{i\top}Q_i(\theta)z^i,$$
+so that $-\tfrac12\nabla^2_{y^k}F=Q_{0,k}(\theta)$: the Gram matrices are the Hessian blocks of the formal Lagrangian, and the hand-written Hankel, constant and localizing relations of the earlier version are not needed. Different factorization conventions for a moment $x^\gamma=x^ax^b$ only shift the base point and give the same set of dual points and the same $\inf U$. We checked the identity numerically: at random $\theta$ the residual at random points is $\le2\times10^{-15}$ for dense, sparse, Boolean, inequality- and equality-constrained instances.</p>
+<p><strong>Oracle cost.</strong> $U(\theta)=\sigma+\sum_bw_b\phi_b(\mathcal Q_b(\theta))$ is convex and piecewise smooth, with $w_b=s_k$ or $s_iB_i$. A subgradient is $e_\sigma-\sum_bw_b\mathcal Q_b'^{*}(v_bv_b^\top)$ over blocks with an active shift, $v_b$ being the smallest-eigenvalue eigenvector. One evaluation needs the smallest eigenpair of each block and a gather/scatter back-substitution. For blocks up to $s\approx2500$ a dense symmetric eigensolver is faster than Lanczos ($0.4$&nbsp;s versus $1.7$&nbsp;s at $s=1831$); memory per iteration is $O(s^2)$ for the block and $O(s^2)$ for the multipliers — against an interior-point Schur complement of dimension $m\sim s^2$ and storage $O(m^2)=O(s^4)$.</p>
+
+<h2 id="algorithms">Smoothing, Complexity and Certification</h2>
+<p><strong>Entropic smoothing.</strong> Because $\lmax$ is the maximum of a family of linear functions, Nesterov's smoothing <sup class="cite">[<a href="#ref-nesterov2005">21</a>]</sup><sup class="cite">[<a href="#ref-nesterov2007">22</a>]</sup> applies. For $\eta>0$ let
+$$\phi_\eta^{+}(Q)=\eta\log\big(1+\tr e^{-Q/\eta}\big),\qquad \phi_\eta^{0}(Q)=\eta\log\tr e^{-Q/\eta}$$
+(smoothings of $\pos{-\lmin(Q)}$ and $-\lmin(Q)$) and $U_\eta=\sigma+\sum_bw_b\phi_{\eta,b}(\mathcal Q_b)$. Then:</p>
+<ul>
+<li><strong>Sandwich:</strong> $U\le U_\eta\le U+\eta\sum_bw_b\log(s_b+\epsilon_b)$ — so $U_\eta$ is itself a valid upper bound.</li>
+<li><strong>Gradient:</strong> $\nabla U_\eta=e_\sigma-\sum_bw_b\mathcal Q_b'^{*}(P_b)$ with the (sub-)density matrix $P_b=e^{-Q_b/\eta}/(\epsilon_b+\tr e^{-Q_b/\eta})$.</li>
+<li><strong>Smoothness:</strong> $\nabla U_\eta$ is Lipschitz with constant $\ell/\eta$, from the strong convexity of the negative von Neumann entropy.</li>
+</ul>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/smoothing.html" width="100%" height="470"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Entropic smoothing sandwich"></iframe>
+  <figcaption>Drag $\eta$: the smooth bound $U_\eta$ stays between $U$ and $U+\eta\log(s+1)$; smaller $\eta$ is more accurate but ill-conditioned (gradient Lipschitz constant $\sim1/\eta$).</figcaption>
+</figure>
+
+<blockquote>
+<p><strong>Theorem 3 ($O(1/\varepsilon)$ iteration bound).</strong> Let $W=\sum_bw_b$, $S=\max_b\log(s_b+1)$, $\eta=\varepsilon/(2WS)$. Accelerated gradient descent with backtracking <sup class="cite">[<a href="#ref-beck2009">23</a>]</sup> on $U_\eta$ from $\theta_0$ satisfies $U(\theta_k)\le U(\bar\theta)+\varepsilon$ for every comparison point $\bar\theta$ once $k+1\ge\frac{4R}{\varepsilon}\sqrt{\ell WS}$, with $R=\|\theta_0-\bar\theta\|$. Subgradient methods need $\Theta(1/\varepsilon^2)$ iterations in the worst case.</p>
+</blockquote>
+<p>The bound is worst-case and needs the tiny $\eta=\varepsilon/(2WS)$. In practice the default solver runs L-BFGS on $U_\eta$ for a decreasing sequence $\eta\in\{10^{-1},3\cdot10^{-2},\dots,10^{-5}\}$ with warm starts (up to 500 iterations per stage) — no complexity guarantee, but faster. At every function evaluation the <em>hard</em> value $U(\theta)$ is computed from the same eigen-decomposition at no extra cost, so the best certified bound seen so far is always available.</p>
+<p><strong>Certification.</strong> If $f(K)\subseteq\mathbb Z$ (e.g. unweighted MAX-CUT), then $f^\star\le\lfloor U(\theta)\rfloor$ for every dual point; if a feasible $\hat x\in K$ has $f(\hat x)=\lfloor U(\theta)\rfloor$, then $\hat x$ is a global maximizer. This is how we turn a numerical bound into a proof of optimality. In floating point the certificate is exact up to the error of the dense symmetric eigensolver, many orders of magnitude below the margins in the experiments; we did not use interval arithmetic or a verified Cholesky factorization, which a fully rigorous certificate would add.</p>
+<p><strong>A smoothing-free alternative: the dual augmented Lagrangian.</strong> Smoothing has a structural weakness for problems with many constraint blocks: the bias bound is $\eta\sum_bw_b\log(s_b+1)$, the weights $w_b=s_bB_b$ are fixed by validity, and in the neural-network problems below $W$ is of order $10^3$ so $\eta\lesssim10^{-7}$ would be needed — extremely ill-conditioned. We therefore also solve the exact dual
+$$\min_{\theta,t}\ \sigma+\sum_bw_bt_b\quad\text{s.t.}\quad Q_b(\theta)+t_bI\succeq0,\ \ t_b\ge0$$
+with an augmented Lagrangian on the PSD constraints (boundary-point / SDPNAL line <sup class="cite">[<a href="#ref-povh2006">24</a>]</sup><sup class="cite">[<a href="#ref-malick2009">25</a>]</sup><sup class="cite">[<a href="#ref-zhao2010">26</a>]</sup>). Each inner problem is smooth and bound-constrained (L-BFGS-B), one inner iteration costs the same eigen-decomposition per block, the multipliers converge to optimal moment matrices, and the certified bound $U(\theta)$ is evaluated at every outer iterate, so the anytime property is retained. The penalty parameter matters a great deal: on one verification problem, $\rho_0=1,10$ gave no useful bound in 150&nbsp;s, while $\rho_0=300,1000$ reached errors of $1.5\times10^{-6}$ and $4.8\times10^{-7}$. We chose $\rho_0=1000$ from this one instance; it is not guaranteed to transfer.</p>
+
+<h2 id="experiments">Experiments</h2>
+<p><strong>Setup.</strong> Everything is implemented in Python (NumPy, SciPy) in the package <code>msos</code>, in a single process with 8 BLAS threads on a 14-core macOS machine with 36&nbsp;GiB of RAM. The baseline is MOSEK 11.2 through CVXPY on a separately written moment-matrix model that shares no code with the dual construction; reported MOSEK times and memory include model construction. All MAX-CUT instances are unweighted random 3-regular graphs (<code>networkx</code>, seed 1, one instance per size). Timings were taken on a lightly loaded but not isolated machine, so they carry some noise.</p>
+
+<h3>Correctness (E1)</h3>
+<p>The first-order certified bound against the exact value of the moment relaxation computed by MOSEK, with and without the trace cuts, on 24 problem–order pairs: a ball, a disk, a sphere (equality constraint), MAX-CUT instances at $r=1,2,3$, box-constrained non-convex QPs, and a correlatively sparse chain problem.</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">Problem</th><th colspan="1">$r$</th><th colspan="1">$s$</th><th colspan="1">\#blocks</th><th colspan="1">true opt.</th><th colspan="1">MOSEK (Lasserre)</th><th colspan="1">MOSEK (+ cuts)</th><th colspan="1">first-order $U$</th></tr></thead>
+<tbody>
+<tr><td colspan="1">ball</td><td colspan="1">2</td><td colspan="1">3</td><td colspan="1">2</td><td colspan="1">1.0000</td><td colspan="1">1.00000</td><td colspan="1">1.00000</td><td colspan="1">1.00000</td></tr>
+<tr><td colspan="1">disk</td><td colspan="1">2</td><td colspan="1">6</td><td colspan="1">2</td><td colspan="1">1.4142</td><td colspan="1">1.41421</td><td colspan="1">1.41421</td><td colspan="1">1.41422</td></tr>
+<tr><td colspan="1">sphere (eq.)</td><td colspan="1">2</td><td colspan="1">6</td><td colspan="1">1</td><td colspan="1">1.4142</td><td colspan="1">1.41421</td><td colspan="1">1.41421</td><td colspan="1">1.41421</td></tr>
+<tr><td colspan="1">MAX-CUT K3</td><td colspan="1">1</td><td colspan="1">4</td><td colspan="1">1</td><td colspan="1">2.0000</td><td colspan="1">2.25000</td><td colspan="1">2.25000</td><td colspan="1">2.25000</td></tr>
+<tr><td colspan="1">MAX-CUT K3</td><td colspan="1">2</td><td colspan="1">7</td><td colspan="1">1</td><td colspan="1">2.0000</td><td colspan="1">2.00000</td><td colspan="1">2.00000</td><td colspan="1">2.00000</td></tr>
+<tr><td colspan="1">MAX-CUT K3</td><td colspan="1">3</td><td colspan="1">8</td><td colspan="1">1</td><td colspan="1">2.0000</td><td colspan="1">2.00000</td><td colspan="1">2.00000</td><td colspan="1">2.00000</td></tr>
+<tr><td colspan="1">MAX-CUT C5</td><td colspan="1">1</td><td colspan="1">6</td><td colspan="1">1</td><td colspan="1">4.0000</td><td colspan="1">4.52254</td><td colspan="1">4.52254</td><td colspan="1">4.52255</td></tr>
+<tr><td colspan="1">MAX-CUT C5</td><td colspan="1">2</td><td colspan="1">16</td><td colspan="1">1</td><td colspan="1">4.0000</td><td colspan="1">4.00000</td><td colspan="1">4.00000</td><td colspan="1">4.00005</td></tr>
+<tr><td colspan="1">MAX-CUT C5</td><td colspan="1">3</td><td colspan="1">26</td><td colspan="1">1</td><td colspan="1">4.0000</td><td colspan="1">4.00000</td><td colspan="1">4.00000</td><td colspan="1">4.00003</td></tr>
+<tr><td colspan="1">MAX-CUT K5</td><td colspan="1">1</td><td colspan="1">6</td><td colspan="1">1</td><td colspan="1">6.0000</td><td colspan="1">6.25000</td><td colspan="1">6.25000</td><td colspan="1">6.25000</td></tr>
+<tr><td colspan="1">MAX-CUT K5</td><td colspan="1">2</td><td colspan="1">16</td><td colspan="1">1</td><td colspan="1">6.0000</td><td colspan="1">6.25000</td><td colspan="1">6.25000</td><td colspan="1">6.25002</td></tr>
+<tr><td colspan="1">MAX-CUT K5</td><td colspan="1">3</td><td colspan="1">26</td><td colspan="1">1</td><td colspan="1">6.0000</td><td colspan="1">6.00000</td><td colspan="1">6.00000</td><td colspan="1">6.00003</td></tr>
+<tr><td colspan="1">MAX-CUT Petersen</td><td colspan="1">1</td><td colspan="1">11</td><td colspan="1">1</td><td colspan="1">12.0000</td><td colspan="1">12.50000</td><td colspan="1">12.50000</td><td colspan="1">12.50001</td></tr>
+<tr><td colspan="1">MAX-CUT Petersen</td><td colspan="1">2</td><td colspan="1">56</td><td colspan="1">1</td><td colspan="1">12.0000</td><td colspan="1">12.00000</td><td colspan="1">12.00000</td><td colspan="1">12.00013</td></tr>
+<tr><td colspan="1">MAX-CUT K7</td><td colspan="1">1</td><td colspan="1">8</td><td colspan="1">1</td><td colspan="1">12.0000</td><td colspan="1">12.25000</td><td colspan="1">12.25000</td><td colspan="1">12.25000</td></tr>
+<tr><td colspan="1">MAX-CUT K7</td><td colspan="1">2</td><td colspan="1">29</td><td colspan="1">1</td><td colspan="1">12.0000</td><td colspan="1">12.25000</td><td colspan="1">12.25000</td><td colspan="1">12.25002</td></tr>
+<tr><td colspan="1">MAX-CUT K7</td><td colspan="1">3</td><td colspan="1">64</td><td colspan="1">1</td><td colspan="1">12.0000</td><td colspan="1">12.25000</td><td colspan="1">12.25000</td><td colspan="1">12.25010</td></tr>
+<tr><td colspan="1">MAX-CUT reg3-12</td><td colspan="1">1</td><td colspan="1">13</td><td colspan="1">1</td><td colspan="1">16.0000</td><td colspan="1">16.00000</td><td colspan="1">16.00000</td><td colspan="1">16.00000</td></tr>
+<tr><td colspan="1">MAX-CUT reg3-12</td><td colspan="1">2</td><td colspan="1">79</td><td colspan="1">1</td><td colspan="1">16.0000</td><td colspan="1">16.00000</td><td colspan="1">16.00000</td><td colspan="1">16.00010</td></tr>
+<tr><td colspan="1">box QP n=5 (seed 1)</td><td colspan="1">2</td><td colspan="1">21</td><td colspan="1">6</td><td colspan="1">–</td><td colspan="1">8.61100</td><td colspan="1">8.61100</td><td colspan="1">8.61110</td></tr>
+<tr><td colspan="1">box QP n=5 (seed 2)</td><td colspan="1">2</td><td colspan="1">21</td><td colspan="1">6</td><td colspan="1">–</td><td colspan="1">10.85204</td><td colspan="1">10.85204</td><td colspan="1">10.85215</td></tr>
+<tr><td colspan="1">chain quartic n=8 (sparse)</td><td colspan="1">2</td><td colspan="1">6</td><td colspan="1">15</td><td colspan="1">–</td><td colspan="1">2.01404</td><td colspan="1">2.01404</td><td colspan="1">2.01419</td></tr>
+<tr><td colspan="1">chain quartic n=8 (dense)</td><td colspan="1">2</td><td colspan="1">45</td><td colspan="1">9</td><td colspan="1">–</td><td colspan="1">2.01404</td><td colspan="1">2.01404</td><td colspan="1">2.01427</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Certified first-order bound versus MOSEK. In every row the bound is $\ge$ the MOSEK value (as it must be) and the largest excess is $2.2\times10^{-4}$. The cuts never changed the optimal value, so “Lasserre” and “+ cuts” coincide. $s$ is the moment-block size.</p>
+
+<p>All first-order bounds are valid upper bounds within $2.2\times10^{-4}$ of the interior-point value. The tabulated MAX-CUT values also display the known behaviour of the hierarchy: the order-1 value is the Goemans–Williamson/Shor bound <sup class="cite">[<a href="#ref-goemans1995">27</a>]</sup> ($9/4$ on the triangle, $4.5225$ on $C_5$, $25/4$ on $K_5$); $K_5$ is closed only at $r=3$; and $K_7$ is still loose at $r=3$, in line with the fact that on complete graphs the hierarchy needs about $n/2$ levels <sup class="cite">[<a href="#ref-laurent2003">28</a>]</sup>.</p>
+
+<h3>Convergence of three solvers (E2)</h3>
+<p>We compare the target-level subgradient method of the earlier version, accelerated gradient with restarts (the scheme of Theorem 3), and L-BFGS on the smoothed objective — same oracle, same dual parametrization, same $\eta$-schedule, so the comparison isolates the solver.</p>
+<figure style="text-align:center;margin:22px 0;"><img src="img/convergence.png" alt="Convergence of three solvers" style="max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;"><figcaption>Certified bound minus the relaxation value (from MOSEK) against wall-clock time. Random 3-regular graphs, one seed per size.</figcaption></figure>
+<div style="overflow-x:auto;font-size:13px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">$n$</th><th colspan="1">gap</th><th colspan="1">L-BFGS</th><th colspan="1">accel. grad.</th><th colspan="1">subgradient</th><th colspan="1">MOSEK (total)</th></tr></thead>
+<tbody>
+<tr><td colspan="1">16</td><td colspan="1">$10^{-1}$</td><td colspan="1">1.39</td><td colspan="1">7.57</td><td colspan="1">0.57</td><td colspan="1">0.8</td></tr>
+<tr><td colspan="1"></td><td colspan="1">$10^{-2}$</td><td colspan="1">2.58</td><td colspan="1">14.59</td><td colspan="1">0.83</td><td colspan="1"></td></tr>
+<tr><td colspan="1"></td><td colspan="1">$10^{-3}$</td><td colspan="1">2.65</td><td colspan="1">21.13</td><td colspan="1">10.57</td><td colspan="1"></td></tr>
+<tr><td colspan="1">24</td><td colspan="1">$10^{-1}$</td><td colspan="1">18.65</td><td colspan="1">91.35</td><td colspan="1">18.97</td><td colspan="1">15.7</td></tr>
+<tr><td colspan="1"></td><td colspan="1">$10^{-2}$</td><td colspan="1">21.98</td><td colspan="1">130</td><td colspan="1">–</td><td colspan="1"></td></tr>
+<tr><td colspan="1"></td><td colspan="1">$10^{-3}$</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1"></td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Time (s) to reach a given gap above the exact relaxation value (“–”: not reached within budget).</p>
+
+<p>Two observations, stated plainly. First, <strong>the plain subgradient method is not as bad as the earlier version claimed</strong>: with the Gram parametrization it reaches a gap of $10^{-2}$ in $0.8$&nbsp;s at $n=16$, faster than L-BFGS, but it stalls at high accuracy ($10.6$&nbsp;s for $10^{-3}$ versus $2.7$&nbsp;s). Second, accelerated gradient, which has the best worst-case complexity, is the <strong>slowest</strong> in practice; L-BFGS exploits curvature far better. At $n=24$ no method reaches $10^{-3}$ within its budget, and MOSEK solves that size in $15.7$&nbsp;s — faster than any first-order solver.</p>
+
+<h3>Scaling in time and memory (E3)</h3>
+<p>Order-2 MAX-CUT on random 3-regular graphs from $n=10$ ($s=56$) to $n=60$ ($s=1831$, $1.68$ million multipliers). Slide through the sizes:</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/scaling.html" width="100%" height="470"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Scaling of time and memory"></iframe>
+  <figcaption>Time and peak memory of the first-order method (blue) and MOSEK (red). The cross marks a lower bound on the memory MOSEK would need at $n=40$, where it was killed.</figcaption>
+</figure>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">$n$</th><th colspan="1">$s$</th><th colspan="1">\#mult.</th><th colspan="1">$U$ (ours)</th><th colspan="1">time</th><th colspan="1">mem.</th><th colspan="1">MOSEK value</th><th colspan="1">time</th><th colspan="1">mem.</th><th colspan="1">best cut</th><th colspan="1">$\lfloor U\rfloor$</th></tr></thead>
+<tbody>
+<tr><td colspan="1">10</td><td colspan="1">56</td><td colspan="1">1,597</td><td colspan="1">12.0002</td><td colspan="1">0.5 s</td><td colspan="1">0.13</td><td colspan="1">12.0000</td><td colspan="1">0.1 s</td><td colspan="1">0.14</td><td colspan="1">12</td><td colspan="1">12</td></tr>
+<tr><td colspan="1">14</td><td colspan="1">106</td><td colspan="1">5,672</td><td colspan="1">19.0000</td><td colspan="1">1.7 s</td><td colspan="1">0.17</td><td colspan="1">19.0000</td><td colspan="1">0.4 s</td><td colspan="1">0.21</td><td colspan="1">19</td><td colspan="1">19</td></tr>
+<tr><td colspan="1">20</td><td colspan="1">211</td><td colspan="1">22,367</td><td colspan="1">26.0010</td><td colspan="1">8.7 s</td><td colspan="1">0.21</td><td colspan="1">26.0000</td><td colspan="1">3.9 s</td><td colspan="1">0.99</td><td colspan="1">26</td><td colspan="1">26</td></tr>
+<tr><td colspan="1">26</td><td colspan="1">352</td><td colspan="1">62,129</td><td colspan="1">36.0000</td><td colspan="1">26.3 s</td><td colspan="1">0.32</td><td colspan="1">36.0000</td><td colspan="1">43.0 s</td><td colspan="1">5.41</td><td colspan="1">36</td><td colspan="1">36</td></tr>
+<tr><td colspan="1">30</td><td colspan="1">466</td><td colspan="1">108,812</td><td colspan="1">40.0026</td><td colspan="1">61.6 s</td><td colspan="1">0.44</td><td colspan="1">40.0000</td><td colspan="1">252.6 s</td><td colspan="1">13.27</td><td colspan="1">40</td><td colspan="1">40</td></tr>
+<tr><td colspan="1">40</td><td colspan="1">821</td><td colspan="1">337,432</td><td colspan="1">54.0065</td><td colspan="1">241.1 s</td><td colspan="1">1.04</td><td colspan="3">killed (SIGKILL; Schur matrix $\gtrsim$39 GiB)</td><td colspan="1">54</td><td colspan="1">54</td></tr>
+<tr><td colspan="1">50</td><td colspan="1">1276</td><td colspan="1">814,727</td><td colspan="1">68.0040</td><td colspan="1">582.7 s</td><td colspan="1">1.89</td><td colspan="3">not attempted</td><td colspan="1">68</td><td colspan="1">68</td></tr>
+<tr><td colspan="1">60</td><td colspan="1">1831</td><td colspan="1">1,677,197</td><td colspan="1">81.0195</td><td colspan="1">2037.4 s</td><td colspan="1">2.49</td><td colspan="3">not attempted</td><td colspan="1">81</td><td colspan="1">81</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Order-2 MAX-CUT. “mem.” is peak memory in GiB. “Best cut” comes from 2000 restarts of single-flip local search; when it equals $\lfloor U\rfloor$ the cut is <em>certified optimal</em>. The MOSEK run at $n=40$ ($m=102{,}091$ constraints; Schur complement $\gtrsim39$ GiB even with symmetric storage, on a 36 GiB machine) was terminated by the operating system; we infer out-of-memory but have not confirmed it otherwise. MOSEK was not attempted for $n\ge50$.</p>
+
+<ul>
+<li><strong>Time.</strong> MOSEK is faster for $n\le20$ ($3.9$&nbsp;s versus $8.7$&nbsp;s at $n=20$). The curves cross near $n=26$; at $n=30$ the first-order method needs $62$&nbsp;s versus $253$&nbsp;s.</li>
+<li><strong>Memory.</strong> The first-order method grows from $0.13$ to $2.5$&nbsp;GiB; MOSEK's grows from $0.14$ to $13.3$&nbsp;GiB at $n=30$ (a factor 30 more) and cannot be run at $n=40$.</li>
+<li><strong>Accuracy.</strong> First-order values exceed MOSEK's by at most $2.6\times10^{-3}$ ($n\le30$); for $n\ge40$ there is no interior-point reference.</li>
+<li><strong>Certified optimality.</strong> At every size the local-search cut equals $\lfloor U\rfloor$, so the order-2 relaxation <em>certifies that the best cut is the maximum cut</em> on every graph up to $n=60$, with a margin between $U$ and the integer of $\le0.02$.</li>
+<li><strong>Anytime.</strong> Every point on the curve below is a valid upper bound; at $n=40$ the bound drops below $55$ after about $120$&nbsp;s and below $54.01$ after about $240$&nbsp;s, so a user who stops early still holds a certificate.</li>
+</ul>
+<figure style="text-align:center;margin:22px 0;"><img src="img/anytime.png" alt="Anytime behaviour" style="max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;"><figcaption>Anytime behaviour: best certified upper bound against time. Every point is a valid upper bound on the maximum cut; dotted: $\lfloor U\rfloor$ at the end of the run.</figcaption></figure>
+
+<p>An earlier attempt at $n=60$ with a Lanczos eigensolver for blocks above $1500$ did not converge within an hour and returned $87.2$ (at $s=1831$ a dense symmetric eigensolver is faster than ARPACK); the reported numbers use the dense solver up to $s=2500$.</p>
+
+<h3>Higher order (E4)</h3>
+<p>Order 3 gives a $1351\times1351$ ($n=20$) and $2325\times2325$ ($n=24$) block with $0.9$ and $2.7$ million multipliers, solved in $2.3$ and $3.8$&nbsp;GiB. For $n=24$ the interior-point model would have $190{,}051$ constraints and a Schur complement of $\gtrsim134$&nbsp;GiB; we did not try it.</p>
+<div style="overflow-x:auto;font-size:13px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">$n$</th><th colspan="1">$r$</th><th colspan="1">$s$</th><th colspan="1">\#mult.</th><th colspan="1">$U$ (ours)</th><th colspan="1">true opt.</th><th colspan="1">time</th><th colspan="1">mem.</th></tr></thead>
+<tbody>
+<tr><td colspan="1">20</td><td colspan="1">1</td><td colspan="1">21</td><td colspan="1">232</td><td colspan="1">26.64409</td><td colspan="1">26</td><td colspan="1">0 s</td><td colspan="1">0.14</td></tr>
+<tr><td colspan="1">20</td><td colspan="1">2</td><td colspan="1">211</td><td colspan="1">22,367</td><td colspan="1">26.00096</td><td colspan="1">26</td><td colspan="1">9 s</td><td colspan="1">0.21</td></tr>
+<tr><td colspan="1">20</td><td colspan="1">3</td><td colspan="1">1351</td><td colspan="1">913,277</td><td colspan="1">26.00612</td><td colspan="1">26</td><td colspan="1">528 s</td><td colspan="1">2.25</td></tr>
+<tr><td colspan="1">24</td><td colspan="1">2</td><td colspan="1">301</td><td colspan="1">45,452</td><td colspan="1">32.00267</td><td colspan="1">32</td><td colspan="1">24 s</td><td colspan="1">0.49</td></tr>
+<tr><td colspan="1">24</td><td colspan="1">3</td><td colspan="1">2325</td><td colspan="1">2,703,976</td><td colspan="1">32.02266</td><td colspan="1">32</td><td colspan="1">2015 s</td><td colspan="1">3.79</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Higher relaxation orders on random 3-regular MAX-CUT; “mem.” in GiB. The optimum is computed by exhaustive enumeration.</p>
+
+<p>On these graphs the order-2 relaxation is already tight, so $r=3$ does not improve the bound; the experiment only shows that certified bounds at this order are reachable on a laptop-class machine, with a larger gap ($6\times10^{-3}$ and $2.3\times10^{-2}$ above the integer optimum) because the iteration budget is limited. MOSEK checks on $G(16,\tfrac12)$ and on $\pm1$-weighted complete graphs show order 2 is already exact there, so we make no claim that $r=3$ is needed in practice for MAX-CUT — only for structured graphs like complete graphs.</p>
+
+<h3>Sparsity and non-convex box QPs (E5)</h3>
+<p>A chain problem $\max\sum_i(a_ix_ix_{i+1}+b_ix_i^2x_{i+1}^2-0.3x_i^4)$ on the box with cliques $\{i,i+1\}$ (blocks of size $6$), solved with the sparse and the dense relaxation, and dense box QPs $\max x^\top Qx$, $x\in[-1,1]^n$.</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">Problem</th><th colspan="1">relaxation</th><th colspan="1">max block</th><th colspan="1">\#blocks</th><th colspan="1">\#mult.</th><th colspan="1">$U$ (ours)</th><th colspan="1">time</th><th colspan="1">MOSEK value</th><th colspan="1">time</th></tr></thead>
+<tbody>
+<tr><td colspan="1">chain8</td><td colspan="1">sparse</td><td colspan="1">6</td><td colspan="1">15</td><td colspan="1">196</td><td colspan="1">2.01419</td><td colspan="1">0.5 s</td><td colspan="1">2.01404</td><td colspan="1">0.1 s</td></tr>
+<tr><td colspan="1">chain8</td><td colspan="1">dense</td><td colspan="1">45</td><td colspan="1">9</td><td colspan="1">1,396</td><td colspan="1">2.01427</td><td colspan="1">1.2 s</td><td colspan="1">2.01404</td><td colspan="1">0.6 s</td></tr>
+<tr><td colspan="1">chain12</td><td colspan="1">sparse</td><td colspan="1">6</td><td colspan="1">23</td><td colspan="1">304</td><td colspan="1">2.37173</td><td colspan="1">1.1 s</td><td colspan="1">2.37146</td><td colspan="1">0.2 s</td></tr>
+<tr><td colspan="1">chain12</td><td colspan="1">dense</td><td colspan="1">91</td><td colspan="1">13</td><td colspan="1">5,279</td><td colspan="1">2.37188</td><td colspan="1">4.2 s</td><td colspan="1">2.37146</td><td colspan="1">2.9 s</td></tr>
+<tr><td colspan="1">chain16</td><td colspan="1">sparse</td><td colspan="1">6</td><td colspan="1">31</td><td colspan="1">412</td><td colspan="1">5.15506</td><td colspan="1">1.3 s</td><td colspan="1">5.15472</td><td colspan="1">0.2 s</td></tr>
+<tr><td colspan="1">chain16</td><td colspan="1">dense</td><td colspan="1">153</td><td colspan="1">17</td><td colspan="1">14,230</td><td colspan="1">5.15527</td><td colspan="1">13.3 s</td><td colspan="1">5.15472</td><td colspan="1">12.6 s</td></tr>
+<tr><td colspan="1">chain20</td><td colspan="1">sparse</td><td colspan="1">6</td><td colspan="1">39</td><td colspan="1">520</td><td colspan="1">7.97433</td><td colspan="1">1.7 s</td><td colspan="1">7.97393</td><td colspan="1">0.3 s</td></tr>
+<tr><td colspan="1">chain20</td><td colspan="1">dense</td><td colspan="1">231</td><td colspan="1">21</td><td colspan="1">31,417</td><td colspan="1">7.97471</td><td colspan="1">31.7 s</td><td colspan="1">–</td><td colspan="1">–</td></tr>
+<tr><td colspan="1">chain24</td><td colspan="1">sparse</td><td colspan="1">6</td><td colspan="1">47</td><td colspan="1">628</td><td colspan="1">8.44369</td><td colspan="1">1.8 s</td><td colspan="1">8.44318</td><td colspan="1">0.4 s</td></tr>
+<tr><td colspan="1">chain24</td><td colspan="1">dense</td><td colspan="1">325</td><td colspan="1">25</td><td colspan="1">60,776</td><td colspan="1">8.44432</td><td colspan="1">68.5 s</td><td colspan="1">–</td><td colspan="1">–</td></tr>
+<tr><td colspan="1">boxqp6</td><td colspan="1">dense</td><td colspan="1">28</td><td colspan="1">7</td><td colspan="1">575</td><td colspan="1">15.44530</td><td colspan="1">0.3 s</td><td colspan="1">15.44526</td><td colspan="1">0.2 s</td></tr>
+<tr><td colspan="1">boxqp8</td><td colspan="1">dense</td><td colspan="1">45</td><td colspan="1">9</td><td colspan="1">1,396</td><td colspan="1">23.15104</td><td colspan="1">0.7 s</td><td colspan="1">23.15096</td><td colspan="1">0.6 s</td></tr>
+<tr><td colspan="1">boxqp10</td><td colspan="1">dense</td><td colspan="1">66</td><td colspan="1">11</td><td colspan="1">2,872</td><td colspan="1">44.91237</td><td colspan="1">1.7 s</td><td colspan="1">44.91235</td><td colspan="1">1.3 s</td></tr>
+<tr><td colspan="1">boxqp12</td><td colspan="1">dense</td><td colspan="1">91</td><td colspan="1">13</td><td colspan="1">5,279</td><td colspan="1">41.68393</td><td colspan="1">2.8 s</td><td colspan="1">41.68391</td><td colspan="1">2.7 s</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Correlative sparsity (chain, $r=2$) and dense non-convex box QPs.</p>
+
+<p>Sparse and dense relaxations have the same value (to $5\times10^{-4}$), but the first-order method is $38\times$ faster on the sparse one at $n=24$ ($1.8$&nbsp;s versus $68.5$&nbsp;s). For these small blocks, <strong>MOSEK is faster than the first-order method in every row we ran</strong>.</p>
+
+<h3>Other first-order solvers (E6)</h3>
+<p>We also compared with SCS <sup class="cite">[<a href="#ref-odonoghue2016">9</a>]</sup> (ADMM, same moment model), a dense conditional-gradient augmented-Lagrangian method (CGAL, <sup class="cite">[<a href="#ref-yurtsever2021">11</a>]</sup> without the sketch) and a Burer–Monteiro augmented Lagrangian <sup class="cite">[<a href="#ref-burer2003">12</a>]</sup> ($k=8,16$) on order-2 MAX-CUT, $n=16,\dots,40$. The baselines' parameters were tuned <em>per instance using the reference value</em>, which favours them; ours was not. For CGAL, BM and SCS, “reaching accuracy $10^{-3}$” means value error and constraint violation both $\le10^{-3}$; ours is a certified upper bound minus the reference.</p>
+<figure style="text-align:center;margin:22px 0;"><img src="img/baselines.png" alt="Comparison with other first-order solvers" style="max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;"><figcaption>Error against time for our certified method and other first-order solvers on order-2 MAX-CUT (panels $n=20,30,40$). Only ours is a rigorous upper bound at every point.</figcaption></figure>
+
+<p>The outcome is <strong>unfavourable to our method in speed</strong>: at every size at least one non-certified baseline reaches $10^{-3}$ faster than we do, and Burer–Monteiro is the fastest (e.g. $n=30$: $4.7$&nbsp;s for $k=8$ versus $62$&nbsp;s for ours). All first-order methods beat MOSEK from $n\ge26$ in time and memory. What the baselines do not provide is a bound: they return primal values with constraint violation about $10^{-3}$, whereas every iterate of ours is a certified upper bound. The price of certification, in our experiments, is a factor $5$–$15$ in time at $n\ge20$. The full comparison:</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">$n$</th><th colspan="1">method</th><th colspan="1">$t_{10^{-1}}$</th><th colspan="1">$t_{10^{-2}}$</th><th colspan="1">$t_{10^{-3}}$</th><th colspan="1">final value</th><th colspan="1">signed err.</th><th colspan="1">max viol.</th><th colspan="1">total time</th><th colspan="1">mem.</th></tr></thead>
+<tbody>
+<tr><td colspan="1">16</td><td colspan="1">ours (certified $U$)</td><td colspan="1">1.6 s</td><td colspan="1">3.0 s</td><td colspan="1">3.0 s</td><td colspan="1">22.0003</td><td colspan="1">+3.1e-04</td><td colspan="1">$0$</td><td colspan="1">3.1 s</td><td colspan="1">0.18</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-3}$</td><td colspan="1">0.5 s</td><td colspan="1">0.5 s</td><td colspan="1">n.r.</td><td colspan="1">21.9979</td><td colspan="1">-2.1e-03</td><td colspan="1">–</td><td colspan="1">0.5 s</td><td colspan="1">0.15</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-5}$</td><td colspan="1">0.6 s</td><td colspan="1">0.6 s</td><td colspan="1">0.6 s</td><td colspan="1">22.0000</td><td colspan="1">-3.3e-07</td><td colspan="1">–</td><td colspan="1">0.6 s</td><td colspan="1">0.15</td></tr>
+<tr><td colspan="1"></td><td colspan="1">CGAL</td><td colspan="1">0.1 s</td><td colspan="1">0.2 s</td><td colspan="1">0.5 s</td><td colspan="1">22.0001</td><td colspan="1">+6.9e-05</td><td colspan="1">8.4e-04</td><td colspan="1">0.5 s</td><td colspan="1">0.13</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}8$</td><td colspan="1">0.1 s</td><td colspan="1">0.1 s</td><td colspan="1">0.2 s</td><td colspan="1">22.0001</td><td colspan="1">+8.6e-05</td><td colspan="1">9.9e-04</td><td colspan="1">0.2 s</td><td colspan="1">0.13</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}16$</td><td colspan="1">0.2 s</td><td colspan="1">0.2 s</td><td colspan="1">0.3 s</td><td colspan="1">21.9999</td><td colspan="1">-1.1e-04</td><td colspan="1">7.9e-04</td><td colspan="1">0.3 s</td><td colspan="1">0.14</td></tr>
+<tr><td colspan="1"></td><td colspan="1">MOSEK (IPM)</td><td colspan="3">(exact)</td><td colspan="1">22.0000</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1">0.8 s</td><td colspan="1">0.31</td></tr>
+<tr><td colspan="99" style="padding:1px;background:var(--soft)"></td></tr>
+<tr><td colspan="1">20</td><td colspan="1">ours (certified $U$)</td><td colspan="1">6.3 s</td><td colspan="1">8.3 s</td><td colspan="1">8.6 s</td><td colspan="1">26.0010</td><td colspan="1">+9.6e-04</td><td colspan="1">$0$</td><td colspan="1">8.7 s</td><td colspan="1">0.21</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-3}$</td><td colspan="1">1.5 s</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">25.9696</td><td colspan="1">-3.0e-02</td><td colspan="1">–</td><td colspan="1">1.5 s</td><td colspan="1">0.18</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-5}$</td><td colspan="1">2.3 s</td><td colspan="1">2.3 s</td><td colspan="1">2.3 s</td><td colspan="1">26.0000</td><td colspan="1">-1.3e-07</td><td colspan="1">–</td><td colspan="1">2.3 s</td><td colspan="1">0.18</td></tr>
+<tr><td colspan="1"></td><td colspan="1">CGAL</td><td colspan="1">0.6 s</td><td colspan="1">2.8 s</td><td colspan="1">8.5 s</td><td colspan="1">25.9995</td><td colspan="1">-5.5e-04</td><td colspan="1">9.3e-04</td><td colspan="1">8.5 s</td><td colspan="1">0.14</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}8$</td><td colspan="1">0.3 s</td><td colspan="1">0.5 s</td><td colspan="1">1.4 s</td><td colspan="1">26.0001</td><td colspan="1">+1.3e-04</td><td colspan="1">9.9e-04</td><td colspan="1">1.4 s</td><td colspan="1">0.17</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}16$</td><td colspan="1">0.4 s</td><td colspan="1">1.0 s</td><td colspan="1">1.6 s</td><td colspan="1">26.0009</td><td colspan="1">+8.7e-04</td><td colspan="1">9.5e-04</td><td colspan="1">1.6 s</td><td colspan="1">0.20</td></tr>
+<tr><td colspan="1"></td><td colspan="1">MOSEK (IPM)</td><td colspan="3">(exact)</td><td colspan="1">26.0000</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1">4.1 s</td><td colspan="1">1.00</td></tr>
+<tr><td colspan="99" style="padding:1px;background:var(--soft)"></td></tr>
+<tr><td colspan="1">26</td><td colspan="1">ours (certified $U$)</td><td colspan="1">17.2 s</td><td colspan="1">26.0 s</td><td colspan="1">26.2 s</td><td colspan="1">36.0000</td><td colspan="1">+3.2e-05</td><td colspan="1">$0$</td><td colspan="1">26.3 s</td><td colspan="1">0.32</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-3}$</td><td colspan="1">6.0 s</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">35.9226</td><td colspan="1">-7.7e-02</td><td colspan="1">–</td><td colspan="1">6.0 s</td><td colspan="1">0.30</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-5}$</td><td colspan="1">9.5 s</td><td colspan="1">9.5 s</td><td colspan="1">n.r.</td><td colspan="1">35.9982</td><td colspan="1">-1.8e-03</td><td colspan="1">–</td><td colspan="1">9.5 s</td><td colspan="1">0.28</td></tr>
+<tr><td colspan="1"></td><td colspan="1">CGAL</td><td colspan="1">0.4 s</td><td colspan="1">1.7 s</td><td colspan="1">3.8 s</td><td colspan="1">36.0000</td><td colspan="1">-1.8e-06</td><td colspan="1">9.9e-04</td><td colspan="1">3.8 s</td><td colspan="1">0.17</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}8$</td><td colspan="1">0.8 s</td><td colspan="1">1.9 s</td><td colspan="1">3.2 s</td><td colspan="1">35.9996</td><td colspan="1">-4.4e-04</td><td colspan="1">7.8e-04</td><td colspan="1">3.2 s</td><td colspan="1">0.26</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}16$</td><td colspan="1">1.8 s</td><td colspan="1">2.2 s</td><td colspan="1">3.6 s</td><td colspan="1">35.9991</td><td colspan="1">-9.3e-04</td><td colspan="1">7.8e-04</td><td colspan="1">3.6 s</td><td colspan="1">0.34</td></tr>
+<tr><td colspan="1"></td><td colspan="1">MOSEK (IPM)</td><td colspan="3">(exact)</td><td colspan="1">36.0000</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1">46.0 s</td><td colspan="1">4.89</td></tr>
+<tr><td colspan="99" style="padding:1px;background:var(--soft)"></td></tr>
+<tr><td colspan="1">30</td><td colspan="1">ours (certified $U$)</td><td colspan="1">47.1 s</td><td colspan="1">59.4 s</td><td colspan="1">n.r.</td><td colspan="1">40.0026</td><td colspan="1">+2.6e-03</td><td colspan="1">$0$</td><td colspan="1">61.6 s</td><td colspan="1">0.44</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-3}$</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">39.8497</td><td colspan="1">-1.5e-01</td><td colspan="1">–</td><td colspan="1">18.7 s</td><td colspan="1">0.38</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-5}$</td><td colspan="1">21.7 s</td><td colspan="1">21.7 s</td><td colspan="1">21.7 s</td><td colspan="1">40.0000</td><td colspan="1">+2.3e-05</td><td colspan="1">–</td><td colspan="1">21.7 s</td><td colspan="1">0.38</td></tr>
+<tr><td colspan="1"></td><td colspan="1">CGAL</td><td colspan="1">6.0 s</td><td colspan="1">21.8 s</td><td colspan="1">65.5 s</td><td colspan="1">39.9991</td><td colspan="1">-9.3e-04</td><td colspan="1">9.8e-04</td><td colspan="1">65.5 s</td><td colspan="1">0.22</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}8$</td><td colspan="1">2.9 s</td><td colspan="1">3.8 s</td><td colspan="1">4.7 s</td><td colspan="1">40.0003</td><td colspan="1">+2.7e-04</td><td colspan="1">7.8e-04</td><td colspan="1">4.7 s</td><td colspan="1">0.35</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}16$</td><td colspan="1">2.0 s</td><td colspan="1">4.7 s</td><td colspan="1">7.9 s</td><td colspan="1">40.0008</td><td colspan="1">+8.5e-04</td><td colspan="1">9.6e-04</td><td colspan="1">7.9 s</td><td colspan="1">0.26</td></tr>
+<tr><td colspan="1"></td><td colspan="1">MOSEK (IPM)</td><td colspan="3">(exact)</td><td colspan="1">40.0000</td><td colspan="1">–</td><td colspan="1">–</td><td colspan="1">278 s</td><td colspan="1">12.58</td></tr>
+<tr><td colspan="99" style="padding:1px;background:var(--soft)"></td></tr>
+<tr><td colspan="1">40</td><td colspan="1">ours (certified $U$)</td><td colspan="1">196 s</td><td colspan="1">231 s</td><td colspan="1">231 s</td><td colspan="1">54.0065</td><td colspan="1">+0.0e+00</td><td colspan="1">$0$</td><td colspan="1">241 s</td><td colspan="1">1.04</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-3}$</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">53.5530</td><td colspan="1">-4.5e-01</td><td colspan="1">–</td><td colspan="1">104 s</td><td colspan="1">1.07</td></tr>
+<tr><td colspan="1"></td><td colspan="1">SCS $\epsilon{=}10^{-5}$</td><td colspan="1">129 s</td><td colspan="1">n.r.</td><td colspan="1">n.r.</td><td colspan="1">53.9928</td><td colspan="1">-1.4e-02</td><td colspan="1">–</td><td colspan="1">129 s</td><td colspan="1">1.13</td></tr>
+<tr><td colspan="1"></td><td colspan="1">CGAL</td><td colspan="1">16.7 s</td><td colspan="1">177 s</td><td colspan="1">n.r.</td><td colspan="1">53.9994</td><td colspan="1">-7.1e-03</td><td colspan="1">9.4e-04</td><td colspan="1">445 s</td><td colspan="1">0.42</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}8$</td><td colspan="1">7.3 s</td><td colspan="1">17.7 s</td><td colspan="1">n.r.</td><td colspan="1">54.0000</td><td colspan="1">-6.5e-03</td><td colspan="1">9.8e-04</td><td colspan="1">26.0 s</td><td colspan="1">0.45</td></tr>
+<tr><td colspan="1"></td><td colspan="1">BM $k{=}16$</td><td colspan="1">7.6 s</td><td colspan="1">20.3 s</td><td colspan="1">n.r.</td><td colspan="1">54.0002</td><td colspan="1">-6.3e-03</td><td colspan="1">1.0e-03</td><td colspan="1">37.2 s</td><td colspan="1">0.50</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Order-2 MAX-CUT, 3-regular graphs. $t_{10^{-k}}$: time to reach $|\text{value}-\text{ref}|\le10^{-k}$ (and, for CGAL/BM, violation $\le10^{-k}$); “n.r.”: not reached within 1200 s. “max viol.” is zero for ours (certified bound). At $n=40$ the reference is our own final value $54.0065$ (MOSEK is killed).</p>
+
+
+<h2 id="nn">Application: Second-Order Relaxations for ReLU Networks</h2>
+<p>Semidefinite certification of neural networks is usually limited to a first-order (Shor-type) relaxation: the SDP of Raghunathan et al. <sup class="cite">[<a href="#ref-raghunathan2018">29</a>]</sup> for robustness verification, whose first-order solution at scale is the topic of <sup class="cite">[<a href="#ref-dathathri2020">19</a>]</sup>, and LipSDP <sup class="cite">[<a href="#ref-fazlyab2019">30</a>]</sup> for Lipschitz constants. Polynomial formulations with higher-order relaxations exist <sup class="cite">[<a href="#ref-latorre2020">31</a>]</sup><sup class="cite">[<a href="#ref-chen2020lipschitz">32</a>]</sup> but are limited by the cost of the SDP solver. Can first-order solvers reach order 2 on such problems?</p>
+<h3>Polynomial encodings</h3>
+<p><strong>Robustness verification.</strong> For a ReLU network $a_l=\max(W_la_{l-1}+b_l,0)$ and an $\ell_\infty$ ball around $x_0$, maximize $c^\top(W_La_{L-1}+b_L)$ with $c=e_{\rm wrong}-e_{\rm true}$; a negative maximum proves robustness. Interval bound propagation (IBP) gives a box; <em>stable</em> neurons are substituted away, and every <em>unstable</em> neuron becomes a variable $z$ with $z\ge0$, $z\ge\mathrm{pre}$, $z\,(z-\mathrm{pre})=0$ and the triangle inequality. The objective is linear and the constraints quadratic, so order 1 is the Shor-type SDP of the literature and order 2 is strictly stronger.</p>
+<p><strong>Lipschitz constants.</strong> For $f(x)=W_1\max(W_0x+b_0,0)$, every Jacobian is $W_1\operatorname{diag}(s)W_0$ with $s\in\{0,1\}^w$, hence $\mathrm{Lip}_2(f)^2\le L_{\rm pat}^2:=\max_{\|u\|\le1,\ s\in\{0,1\}^w}\|W_1\operatorname{diag}(s)W_0u\|^2$, with equality when all activation patterns are realized. With spins $t=2s-1$ this is a degree-4 POP in $(u,t)$ with a ball constraint and Boolean $t_j$ (mixed Boolean/continuous mode), so <em>order 2 is the lowest order that makes sense</em>. We compare with LipSDP-Neuron <sup class="cite">[<a href="#ref-fazlyab2019">30</a>]</sup> and with $L_{\rm pat}^2$ computed by enumerating all $2^w$ patterns.</p>
+<h3>Results</h3>
+<p><strong>Verification, small networks.</strong> Six small ReLU networks (two hidden layers, $d\in\{2,3,4\}$, widths $8$–$12$, trained on a synthetic task) were verified at a random point; the exact radius $\varepsilon^\star$ comes from a big-M MILP <sup class="cite">[<a href="#ref-tjeng2019">33</a>]</sup>. Order 2 recovers the exact radius in all cases (up to bisection resolution), whereas order 1 falls short in two of six: $0.229$ against $0.233$ and, strikingly, $0.171$ against $0.227$ ($75\%$) for the network with $d=4$. At $\varepsilon=0.97\varepsilon^\star$ the order-1 value for that network is $+7.04$ (robustness <em>not</em> certified) while the order-2 value is $-0.7212$, equal to the exact maximum. The ALM solver reproduces the interior-point values to $\le9\times10^{-6}$ in every case, in $4$–$62$&nbsp;s; the smoothing solver is accurate only to $10^{-2}$–$10^{-1}$. The interior-point solver is faster at these sizes ($0.1$–$8$&nbsp;s).</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1"></th><th colspan="1"></th><th colspan="1"></th><th colspan="4">certified radius $\varepsilon$</th><th colspan="6">bound on $\max(\ell_{\rm wrong}-\ell_{\rm true})$ at $\varepsilon=0.97 \varepsilon^\star$</th></tr><tr><th colspan="1">net $(d;\text{widths})$</th><th colspan="1">$n$</th><th colspan="1">unst.</th><th colspan="1">IBP</th><th colspan="1">order 1</th><th colspan="1">order 2</th><th colspan="1">exact</th><th colspan="1">exact</th><th colspan="1">order 1 (IPM)</th><th colspan="1">order 2 (IPM)</th><th colspan="1">order 1 (ALM)</th><th colspan="1">order 2 (ALM)</th><th colspan="1">order 2 (smooth.)</th></tr></thead>
+<tbody>
+<tr><td colspan="1">$2;8,8$</td><td colspan="1">9</td><td colspan="1">7</td><td colspan="1">0.414</td><td colspan="1">0.494</td><td colspan="1">0.494</td><td colspan="1">0.494</td><td colspan="1">-4.1391</td><td colspan="1">-3.8260</td><td colspan="1">-4.1391</td><td colspan="1">-3.8260</td><td colspan="1">-4.1391</td><td colspan="1">-4.1005</td></tr>
+<tr><td colspan="1">$2;10,10$</td><td colspan="1">6</td><td colspan="1">4</td><td colspan="1">0.039</td><td colspan="1">0.097</td><td colspan="1">0.096</td><td colspan="1">0.097</td><td colspan="1">-0.4694</td><td colspan="1">-0.4694</td><td colspan="1">-0.4694</td><td colspan="1">-0.4694</td><td colspan="1">-0.4694</td><td colspan="1">-0.4691</td></tr>
+<tr><td colspan="1">$3;8,8$</td><td colspan="1">6</td><td colspan="1">3</td><td colspan="1">0.010</td><td colspan="1">0.079</td><td colspan="1">0.078</td><td colspan="1">0.079</td><td colspan="1">-0.0531</td><td colspan="1">-0.0531</td><td colspan="1">-0.0531</td><td colspan="1">-0.0531</td><td colspan="1">-0.0531</td><td colspan="1">-0.0522</td></tr>
+<tr><td colspan="1">$3;10,10$</td><td colspan="1">13</td><td colspan="1">10</td><td colspan="1">0.042</td><td colspan="1">0.229</td><td colspan="1">0.232</td><td colspan="1">0.233</td><td colspan="1">-0.7868</td><td colspan="1">-0.3217</td><td colspan="1">-0.7868</td><td colspan="1">-0.3217</td><td colspan="1">-0.7868</td><td colspan="1">-0.7057</td></tr>
+<tr><td colspan="1">$4;8,8$</td><td colspan="1">14</td><td colspan="1">10</td><td colspan="1">0.026</td><td colspan="1">0.171</td><td colspan="1">0.227</td><td colspan="1">0.227</td><td colspan="1">-0.7212</td><td colspan="1">7.0408</td><td colspan="1">-0.7212</td><td colspan="1">7.0408</td><td colspan="1">-0.7212</td><td colspan="1">-0.6447</td></tr>
+<tr><td colspan="1">$2;12,12$</td><td colspan="1">10</td><td colspan="1">8</td><td colspan="1">0.058</td><td colspan="1">0.135</td><td colspan="1">0.135</td><td colspan="1">0.135</td><td colspan="1">-0.4430</td><td colspan="1">-0.4430</td><td colspan="1">-0.4430</td><td colspan="1">-0.4430</td><td colspan="1">-0.4430</td><td colspan="1">-0.4305</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Robustness verification of small networks ($n$ variables after eliminating stable neurons, “unst.” unstable neurons). Radii: largest $\varepsilon$ with a negative bound. Right block: bound on the maximal margin violation at $\varepsilon=0.97\varepsilon^\star$ (negative = robust). IPM: interior point (MOSEK); ALM: our dual augmented Lagrangian; smooth.: smoothing + L-BFGS.</p>
+
+<p><strong>Lipschitz constants.</strong> In eight networks ($w=8$–$14$, $d=3$–$5$) LipSDP-Neuron overestimates $L_{\rm pat}^2$ by $0.8\%$–$7.0\%$ (e.g. $1.8236$ against $1.8044$). The order-2 relaxation solved by ALM matches the enumerated value to five digits in all eight cases ($13$–$136$&nbsp;s), including the two with $n=18,19$ where we did not run the interior-point model. Order 3 gives the same value at a much higher cost and is not needed. Two caveats: $L_{\rm pat}^2$ bounds the true Lipschitz constant only from above, and LipSDP is already within $7\%$ of it, so the possible improvement is small.</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">network</th><th colspan="1">$n$</th><th colspan="1">exact $L^2_{\rm pat}$</th><th colspan="1">LipSDP</th><th colspan="1">order 2 (IPM)</th><th colspan="1">order 2 (ALM)</th><th colspan="1">time</th><th colspan="1">order 3 (ALM)</th><th colspan="1">time</th></tr></thead>
+<tbody>
+<tr><td colspan="1">rand $d{=}3,w{=}8$</td><td colspan="1">11</td><td colspan="1">1.80438</td><td colspan="1">1.82360</td><td colspan="1">1.80438</td><td colspan="1">1.80438</td><td colspan="1">17 s</td><td colspan="1">1.80438</td><td colspan="1">249 s</td></tr>
+<tr><td colspan="1">rand $d{=}3,w{=}8$</td><td colspan="1">11</td><td colspan="1">2.49374</td><td colspan="1">2.52125</td><td colspan="1">2.49374</td><td colspan="1">2.49374</td><td colspan="1">16 s</td><td colspan="1">2.49374</td><td colspan="1">229 s</td></tr>
+<tr><td colspan="1">rand $d{=}3,w{=}8$</td><td colspan="1">11</td><td colspan="1">2.71092</td><td colspan="1">2.85274</td><td colspan="1">2.71092</td><td colspan="1">2.71092</td><td colspan="1">13 s</td><td colspan="1">2.71092</td><td colspan="1">185 s</td></tr>
+<tr><td colspan="1">corr $d{=}3,w{=}10$</td><td colspan="1">13</td><td colspan="1">4.17584</td><td colspan="1">4.28999</td><td colspan="1">4.17584</td><td colspan="1">4.17584</td><td colspan="1">23 s</td><td colspan="1">4.17584</td><td colspan="1">581 s</td></tr>
+<tr><td colspan="1">corr $d{=}4,w{=}10$</td><td colspan="1">14</td><td colspan="1">1.60557</td><td colspan="1">1.70239</td><td colspan="1">1.60557</td><td colspan="1">1.60557</td><td colspan="1">52 s</td><td colspan="1">1.60557</td><td colspan="1">906 s</td></tr>
+<tr><td colspan="1">corr $d{=}4,w{=}12$</td><td colspan="1">16</td><td colspan="1">2.13059</td><td colspan="1">2.14801</td><td colspan="1">2.13059</td><td colspan="1">2.13059</td><td colspan="1">61 s</td><td colspan="1">–</td><td colspan="1">–</td></tr>
+<tr><td colspan="1">corr $d{=}4,w{=}14$</td><td colspan="1">18</td><td colspan="1">3.15013</td><td colspan="1">3.32849</td><td colspan="1">–</td><td colspan="1">3.15013</td><td colspan="1">97 s</td><td colspan="1">–</td><td colspan="1">–</td></tr>
+<tr><td colspan="1">corr $d{=}5,w{=}14$</td><td colspan="1">19</td><td colspan="1">1.43330</td><td colspan="1">1.53375</td><td colspan="1">–</td><td colspan="1">1.43330</td><td colspan="1">136 s</td><td colspan="1">–</td><td colspan="1">–</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Squared $\ell_2$ Lipschitz bound of one-hidden-layer ReLU networks: pattern maximum by enumeration, LipSDP-Neuron, and order-2/3 relaxations.</p>
+
+<p><strong>Larger networks.</strong> Two-hidden-layer networks with $40$–$48$ neurons per layer and $\varepsilon$ chosen so that $32$–$55$ neurons are unstable ($n=38$–$60$). The dense order-2 relaxation would need $\ge47$&nbsp;GiB of Schur complement; with correlative sparsity the $n=40$ instance <em>can</em> be solved by the interior-point solver ($1591$&nbsp;s, $19.6$&nbsp;GiB, value $-9.618$ = exact). The ALM solver, given $1500$&nbsp;s, reaches $-8.623$ with $1.2$&nbsp;GiB: it recovers $78\%$ of the improvement of order 2 over order 1 ($-5.094$) in the same time with $1/17$ of the memory, but it has <strong>not converged</strong>. On the $n=38$ network it reaches $8.799$ against the order-1 value $9.568$ and the exact maximum $8.753$ ($94\%$ of the gap closed). The smoothing solver fails on these instances. On the $n=60$ network the ALM made no useful progress in $2200$&nbsp;s; we have <em>no</em> second-order result at this size, and the order-1 value remains the best certificate we hold.</p>
+<div style="overflow-x:auto;font-size:11px;margin:16px 0;">
+<table>
+<thead><tr><th colspan="1">case</th><th colspan="1">$n$</th><th colspan="1">unst.</th><th colspan="1">exact</th><th colspan="1">order 1 (IPM)</th><th colspan="1">order 1 (ALM)</th><th colspan="1">order 2 sparse (IPM)</th><th colspan="1">order 2 sparse (ALM)</th><th colspan="1">time (mem.) ALM</th><th colspan="1">smoothing</th></tr></thead>
+<tbody>
+<tr><td colspan="1">A: $d{=}5$, $40{\times}2$, $\varepsilon{=}0.1$</td><td colspan="1">40</td><td colspan="1">35</td><td colspan="1">-9.618</td><td colspan="1">-5.094</td><td colspan="1">-5.094</td><td colspan="1">-9.618 (1591 s, 19.6 GiB)</td><td colspan="1">-8.623</td><td colspan="1">1554 s (1.2 GiB)</td><td colspan="1">-2.4</td></tr>
+<tr><td colspan="1">C: $d{=}6$, $48{\times}2$, $\varepsilon{=}0.1$</td><td colspan="1">38</td><td colspan="1">32</td><td colspan="1">8.753</td><td colspan="1">9.568</td><td colspan="1">9.568</td><td colspan="1">not run</td><td colspan="1">8.799</td><td colspan="1">1529 s (0.8 GiB)</td><td colspan="1">12.6</td></tr>
+<tr><td colspan="1">B: $d{=}5$, $40{\times}2$, $\varepsilon{=}0.2$</td><td colspan="1">60</td><td colspan="1">55</td><td colspan="1">11.355</td><td colspan="1">33.926</td><td colspan="1">33.925</td><td colspan="1">not run</td><td colspan="1">2043.166</td><td colspan="1">2224 s (3.8 GiB)</td><td colspan="1">117.7</td></tr>
+</tbody>
+</table>
+</div>
+<p style="font-size:12px;color:#666;">Larger verification problems; $\varepsilon$ fixed so that many neurons are unstable. Negative = robust. Last column: best bound of the smoothing solver within the same budget.</p>
+
+<p><strong>Interpretation.</strong> (i) Second-order relaxations give markedly tighter certificates than the order-1 SDP in the networks we tried (a $33\%$ larger certified radius in one of six small networks, with robustness certified where order 1 fails), and they are exact to $10^{-5}$ for the Lipschitz POP of one-hidden-layer networks. (ii) A first-order solver can compute them without a Schur complement: to $10^{-5}$ up to $n=14$ variables, and at $n=38$–$40$ in 25&nbsp;min it recovers $78\%$ and $94\%$ of the order-2 improvement without converging; at $n=60$ it fails. (iii) It is <em>not yet</em> a replacement for an interior-point solver on sparse relaxations of moderate size, which solved the $n=40$ instance exactly in the same time (with $17\times$ the memory). The networks are small, trained on synthetic data, the radii come from one point per network, and the IBP boxes are loose; none of this reaches the size of networks used in practice.</p>
+
+<h2 id="software">Software: <code>polyopt</code></h2>
+<p>The method is released as the PyTorch package <code>polyopt</code>. A problem is written with operator overloading, and the relaxation, the dual parametrization and the solve are automatic:</p>
+<pre style="background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:13px;overflow-x:auto;line-height:1.5"><code style="background:none;border:none;padding:0">import polyopt as po
+x, y = po.variables(2)
+f = x**2*y + x*y**2 - x - y
+problem = po.Problem(f, [x**2 + y**2 &lt;= 1], sense="max", box=(-1, 1))
+res = po.solve(problem, order=2)       # smoothing + L-BFGS (or po.solve_alm)
+print(res.bound)                        # certified upper bound (lower for "min")
+x_hat, value = res.round()              # feasible point = other side of the gap</code></pre>
+<p><strong>Design.</strong> <code>Problem</code> rescales the box to $[-1,1]^n$, normalizes constraints and objective, supports a per-variable Boolean mask (mixed problems), and optionally adds box constraints. <code>Relaxation</code> builds all index arrays with NumPy (cliques by min-fill-in chordal extension of the correlative-sparsity graph). <code>Oracle</code> evaluates $U(\theta)$ with a few gather/scatter operations in torch and a custom autograd function for the spectral part whose backward pass is the analytic $-P_b$ — no eigenvector derivatives, so repeated eigenvalues are harmless. Both solvers warm-start order $r$ from order $r-1$ by embedding the Gram matrices; for Boolean blocks the embedded point keeps the bound exactly. <code>polyopt.nn</code> contains the encodings above with their MILP, PGD and LipSDP references. Ten unit tests check polynomial arithmetic, the Gram identity at random points, gradients against finite differences, known bound values (triangle $9/4\to2$; $K_5$: $6.25\to6$), equality constraints, sparse versus dense cliques, rounding, and warm-start validity.</p>
+
+<h2 id="discussion">Discussion and Limitations</h2>
+<p><strong>What the method is good for.</strong> It produces, at any moment of its run, a rigorous upper bound on the POP maximum by a procedure whose memory is $O(s^2)$ instead of $O(s^4)$. When the optimum is integral and a good feasible point is available (Boolean problems), this closes the gap with a proof: the order-2 relaxation proves optimality of the best cut on every instance up to $n=60$ we tried, at sizes where the interior-point solver cannot run on the same machine.</p>
+<p><strong>What it is not.</strong></p>
+<ol>
+<li>It is not faster than an interior-point solver on small problems: the crossover is at $n\approx26$ for dense order-2 relaxations, and for small or well-sparsified blocks MOSEK remains faster.</li>
+<li>Accuracy is moderate: roughly $10^{-3}$–$10^{-4}$ above the relaxation value, not $10^{-8}$. We obtain a certified upper bound, not a primal–dual gap certificate for the relaxation itself, and do not extract primal solutions from the dual iterates.</li>
+<li>It is not matrix-free in the strong sense: the Gram freedom has $\Theta(s^2)$ parameters, so memory is quadratic in the block size.</li>
+<li>Evidence for solver performance is limited: one random instance per size and wall-clock times on a shared machine. Non-certified baselines were faster at every size, with parameters tuned per instance; we did not run SketchyCGAL with a sketch.</li>
+<li>Engineering limits: monomials are encoded in 64-bit integers, so Boolean mode supports $n\le63$ and non-Boolean mode $n\le26$ at $r=2$; the eigen-oracle is dense up to $s\approx2500$.</li>
+<li>The complexity theorem concerns accelerated gradient, which was the slowest solver in practice; L-BFGS, the fastest, has no guarantee here.</li>
+<li>On the neural-network problems, order 2 was solved to full accuracy only up to about $14$ variables; at $n=38$–$40$ the ALM had not converged after 25&nbsp;min, and at $n=60$ it failed. The penalty parameter was chosen on one instance.</li>
+<li>The weighted domination is proved but not exploited, and the trace cuts never bound on any test problem, so we cannot report a benefit of the box-derived weights over the textbook relaxation.</li>
+</ol>
+<h2 id="conclusion">Outlook</h2>
+<p>A spectral bundle method <sup class="cite">[<a href="#ref-helmberg2000">15</a>]</sup><sup class="cite">[<a href="#ref-mai2023spectral">18</a>]</sup> should combine the robustness of our oracle with faster high-accuracy convergence; term sparsity can reduce $s$ further; the oracle — one dense eigen-decomposition per block — is a natural fit for GPUs; adaptively chosen weights may sharpen non-Boolean relaxations; and recovering primal moments from the softmax density matrices would complete the primal–dual picture.</p>
+
+    </article>
+  </div>
+
+  <section class="refs" id="references">
+    <h2>References</h2>
+    <ol>
+<li id="ref-lasserre2001"><span class="rnum">[1]</span> Jean B. Lasserre. <em>Global optimization with polynomials and the problem of moments</em>. SIAM J. Optim. 11(3), 2001.</li>
+<li id="ref-parrilo2003"><span class="rnum">[2]</span> Pablo A. Parrilo. <em>Semidefinite programming relaxations for semialgebraic problems</em>. Math. Program. 96(2), 2003.</li>
+<li id="ref-laurent2009"><span class="rnum">[3]</span> Monique Laurent. <em>Sums of squares, moment matrices and optimization over polynomials</em>. In Emerging Applications of Algebraic Geometry, Springer, 2009.</li>
+<li id="ref-nie2023"><span class="rnum">[4]</span> Jiawang Nie. <em>Moment and Polynomial Optimization</em>. SIAM, 2023.</li>
+<li id="ref-waki2006"><span class="rnum">[5]</span> Hayato Waki, Sunyoung Kim, Masakazu Kojima, Masakazu Muramatsu. <em>Sums of squares and semidefinite program relaxations for polynomial optimization problems with structured sparsity</em>. SIAM J. Optim. 17(1), 2006.</li>
+<li id="ref-lasserre2006"><span class="rnum">[6]</span> Jean B. Lasserre. <em>Convergent SDP-relaxations in polynomial optimization with sparsity</em>. SIAM J. Optim. 17(3), 2006.</li>
+<li id="ref-wang2021tssos"><span class="rnum">[7]</span> Jie Wang, Victor Magron, Jean B. Lasserre. <em>TSSOS: A moment-SOS hierarchy that exploits term sparsity</em>. SIAM J. Optim. 31(1), 2021.</li>
+<li id="ref-wang2022cstssos"><span class="rnum">[8]</span> Jie Wang, Victor Magron, Jean B. Lasserre, Ngoc Hoang Anh Mai. <em>CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization</em>. ACM Trans. Math. Softw. 48(4), 2022.</li>
+<li id="ref-odonoghue2016"><span class="rnum">[9]</span> Brendan O'Donoghue, Eric Chu, Neal Parikh, Stephen Boyd. <em>Conic optimization via operator splitting and homogeneous self-dual embedding</em>. J. Optim. Theory Appl. 169(3), 2016.</li>
+<li id="ref-zheng2020"><span class="rnum">[10]</span> Yang Zheng, Giovanni Fantuzzi, Antonis Papachristodoulou, Paul Goulart, Andrew Wynn. <em>Chordal decomposition in operator-splitting methods for sparse semidefinite programs</em>. Math. Program. 180, 2020.</li>
+<li id="ref-yurtsever2021"><span class="rnum">[11]</span> Alp Yurtsever, Joel A. Tropp, Olivier Fercoq, Madeleine Udell, Volkan Cevher. <em>Scalable semidefinite programming</em>. SIAM J. Math. Data Sci. 3(1), 2021.</li>
+<li id="ref-burer2003"><span class="rnum">[12]</span> Samuel Burer, Renato D. C. Monteiro. <em>A nonlinear programming algorithm for solving semidefinite programs via low-rank factorization</em>. Math. Program. 95(2), 2003.</li>
+<li id="ref-hou2025"><span class="rnum">[13]</span> Di Hou, Tianyun Tang, Kim-Chuan Toh. <em>A low-rank augmented Lagrangian method for polyhedral-SDP and moment-SOS relaxations of polynomial optimization</em>. arXiv:2512.06359, 2025.</li>
+<li id="ref-wang2023manisdp"><span class="rnum">[14]</span> Jie Wang, Liangbing Hu. <em>Solving low-rank semidefinite programs via manifold optimization</em>. arXiv:2303.01722.</li>
+<li id="ref-helmberg2000"><span class="rnum">[15]</span> Christoph Helmberg, Franz Rendl. <em>A spectral bundle method for semidefinite programming</em>. SIAM J. Optim. 10(3), 2000.</li>
+<li id="ref-lewis1996"><span class="rnum">[16]</span> Adrian S. Lewis, Michael L. Overton. <em>Eigenvalue optimization</em>. Acta Numerica 5, 1996.</li>
+<li id="ref-mai2022ctp"><span class="rnum">[17]</span> Ngoc Hoang Anh Mai, Jean B. Lasserre, Victor Magron, Jie Wang. <em>Exploiting constant trace property in large-scale polynomial optimization</em>. ACM Trans. Math. Softw. 48(4), 2022.</li>
+<li id="ref-mai2023spectral"><span class="rnum">[18]</span> Ngoc Hoang Anh Mai, Victor Magron, Jean B. Lasserre. <em>A hierarchy of spectral relaxations for polynomial optimization</em>. Math. Program. Comput. 15(4), 2023.</li>
+<li id="ref-dathathri2020"><span class="rnum">[19]</span> Sumanth Dathathri et al. <em>Enabling certification of verification-agnostic networks via memory-efficient semidefinite programming</em>. NeurIPS 33, 2020.</li>
+<li id="ref-bental2001"><span class="rnum">[20]</span> Aharon Ben-Tal, Arkadi Nemirovski. <em>Lectures on Modern Convex Optimization</em>. SIAM, 2001.</li>
+<li id="ref-nesterov2005"><span class="rnum">[21]</span> Yurii Nesterov. <em>Smooth minimization of non-smooth functions</em>. Math. Program. 103(1), 2005.</li>
+<li id="ref-nesterov2007"><span class="rnum">[22]</span> Yurii Nesterov. <em>Smoothing technique and its applications in semidefinite optimization</em>. Math. Program. 110(2), 2007.</li>
+<li id="ref-beck2009"><span class="rnum">[23]</span> Amir Beck, Marc Teboulle. <em>A fast iterative shrinkage-thresholding algorithm for linear inverse problems</em>. SIAM J. Imaging Sci. 2(1), 2009.</li>
+<li id="ref-povh2006"><span class="rnum">[24]</span> Janez Povh, Franz Rendl, Angelika Wiegele. <em>A boundary point method to solve semidefinite programs</em>. Computing 78(3), 2006.</li>
+<li id="ref-malick2009"><span class="rnum">[25]</span> Jérôme Malick, Janez Povh, Franz Rendl, Angelika Wiegele. <em>Regularization methods for semidefinite programming</em>. SIAM J. Optim. 20(1), 2009.</li>
+<li id="ref-zhao2010"><span class="rnum">[26]</span> Xin-Yuan Zhao, Defeng Sun, Kim-Chuan Toh. <em>A Newton-CG augmented Lagrangian method for semidefinite programming</em>. SIAM J. Optim. 20(4), 2010.</li>
+<li id="ref-goemans1995"><span class="rnum">[27]</span> Michel X. Goemans, David P. Williamson. <em>Improved approximation algorithms for maximum cut and satisfiability problems using semidefinite programming</em>. J. ACM 42(6), 1995.</li>
+<li id="ref-laurent2003"><span class="rnum">[28]</span> Monique Laurent. <em>Lower bound for the number of iterations in semidefinite hierarchies for the cut polytope</em>. Math. Oper. Res. 28(4), 2003.</li>
+<li id="ref-raghunathan2018"><span class="rnum">[29]</span> Aditi Raghunathan, Jacob Steinhardt, Percy Liang. <em>Semidefinite relaxations for certifying robustness to adversarial examples</em>. NeurIPS 31, 2018.</li>
+<li id="ref-fazlyab2019"><span class="rnum">[30]</span> Mahyar Fazlyab, Alexander Robey, Hamed Hassani, Manfred Morari, George J. Pappas. <em>Efficient and accurate estimation of Lipschitz constants for deep neural networks</em>. NeurIPS 32, 2019.</li>
+<li id="ref-latorre2020"><span class="rnum">[31]</span> Fabian Latorre, Paul Rolland, Volkan Cevher. <em>Lipschitz constant estimation of neural networks via sparse polynomial optimization</em>. ICLR, 2020.</li>
+<li id="ref-chen2020lipschitz"><span class="rnum">[32]</span> Tong Chen, Jean-Bernard Lasserre, Victor Magron, Edouard Pauwels. <em>Semialgebraic optimization for Lipschitz constants of ReLU networks</em>. NeurIPS 33, 2020.</li>
+<li id="ref-tjeng2019"><span class="rnum">[33]</span> Vincent Tjeng, Kai Xiao, Russ Tedrake. <em>Evaluating robustness of neural networks with mixed integer programming</em>. ICLR, 2019.</li>
+    </ol>
+  </section>
+  <script>
+  // Auto-size each figure iframe to its content so nothing is clipped / needs inner scrolling.
+  (function(){
+    function sizeFrames(){
+      document.querySelectorAll('article figure iframe').forEach(function(f){
+        try{
+          var d=f.contentDocument||f.contentWindow.document;
+          var h=Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
+          if(h) f.style.height=h+'px';
+        }catch(e){}
+      });
+    }
+    window.addEventListener('load',sizeFrames);
+    window.addEventListener('resize',function(){clearTimeout(window.__rt);window.__rt=setTimeout(sizeFrames,150);});
+    setTimeout(sizeFrames,300); setTimeout(sizeFrames,900);
+  })();
+  </script>
+</body>
+</html>

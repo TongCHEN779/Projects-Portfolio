@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time and memory: first-order vs interior point</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #top{display:flex;flex-wrap:wrap;gap:8px;padding:8px 10px 0}
+  canvas{display:block;max-width:100%}
+  #panel{padding:6px 16px 12px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px}.row label{min-width:150px;color:#444}input[type=range]{flex:1}
+  .val{font-family:monospace;color:#c0392b;min-width:40px;text-align:right}
+  #readout{margin-top:8px;line-height:1.55;font-family:monospace}
+  .ours{color:#2f6fe0;font-weight:700}.ip{color:#c0392b;font-weight:700}
+</style></head><body>
+<div id="top"><canvas id="t" width="370" height="280"></canvas><canvas id="m" width="370" height="280"></canvas></div>
+<div id="panel">
+  <div class="row"><label>MAX-CUT size n (3-regular)</label><input id="n" type="range" min="0" max="7" step="1" value="4"><span class="val" id="nv"></span></div>
+  <div id="readout"></div>
+</div>
+<script>
+// order-2 MAX-CUT on random 3-regular graphs (paper Table E3)
+const D=[
+ {n:10,s:56,mult:1597,U:12.0002,t:0.5,mem:0.13,mt:0.1,mm:0.14,cut:12},
+ {n:14,s:106,mult:5672,U:19.0000,t:1.7,mem:0.17,mt:0.4,mm:0.21,cut:19},
+ {n:20,s:211,mult:22367,U:26.0010,t:8.7,mem:0.21,mt:3.9,mm:0.99,cut:26},
+ {n:26,s:352,mult:62129,U:36.0000,t:26.3,mem:0.32,mt:43.0,mm:5.41,cut:36},
+ {n:30,s:466,mult:108812,U:40.0026,t:61.6,mem:0.44,mt:252.6,mm:13.27,cut:40},
+ {n:40,s:821,mult:337432,U:54.0065,t:241.1,mem:1.04,mt:null,mm:39,cut:54,killed:true},
+ {n:50,s:1276,mult:814727,U:68.0040,t:582.7,mem:1.89,mt:null,mm:null,cut:68},
+ {n:60,s:1831,mult:1677197,U:81.0195,t:2037.4,mem:2.49,mt:null,mm:null,cut:81}];
+const $=id=>document.getElementById(id),N=$('n');
+function plot(id,key1,key2,title,ymin,ymax,unit,sel){
+  const c=$(id),g=c.getContext('2d'),w=c.width,h=c.height,L=44,R=12,T=24,B=32,pw=w-L-R,ph=h-T-B;g.clearRect(0,0,w,h);
+  const X=n=>L+(Math.log(n)-Math.log(8))/(Math.log(70)-Math.log(8))*pw,Y=v=>T+(1-(Math.log10(v)-Math.log10(ymin))/(Math.log10(ymax)-Math.log10(ymin)))*ph;
+  g.strokeStyle='#eee';g.fillStyle='#555';g.font='11px sans-serif';g.textAlign='right';
+  for(let e=Math.ceil(Math.log10(ymin));e<=Math.floor(Math.log10(ymax));e++){const v=Math.pow(10,e);g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.fillText(v>=1?v:v,L-4,Y(v)+4);}
+  g.textAlign='center';[10,20,30,40,50,60].forEach(n=>g.fillText(n,X(n),h-16));g.fillText('n',L+pw/2,h-3);
+  g.textAlign='left';g.fillStyle='#222';g.font='12px sans-serif';g.fillText(title,L,14);
+  const series=(key,col,dash)=>{const pts=D.filter(d=>d[key]!=null);g.strokeStyle=col;g.fillStyle=col;g.lineWidth=2;g.beginPath();pts.forEach((d,i)=>i?g.lineTo(X(d.n),Y(d[key])):g.moveTo(X(d.n),Y(d[key])));g.stroke();pts.forEach(d=>{g.beginPath();g.arc(X(d.n),Y(d[key]),d===D[sel]?6:3.4,0,7);g.fill();});};
+  series(key1,'#2f6fe0');series(key2,'#c0392b');
+  const d=D[sel];if(d[key2]==null&&d.killed==null){}
+  if(d.killed&&key2==='mm'){g.strokeStyle='#c0392b';g.lineWidth=2;const x=X(d.n),y=Y(d.mm);g.beginPath();g.moveTo(x-6,y-6);g.lineTo(x+6,y+6);g.moveTo(x+6,y-6);g.lineTo(x-6,y+6);g.stroke();}
+  g.strokeStyle='rgba(0,0,0,0.25)';g.setLineDash([4,3]);g.beginPath();g.moveTo(X(d.n),T);g.lineTo(X(d.n),T+ph);g.stroke();g.setLineDash([]);
+}
+function draw(){
+  const i=+N.value,d=D[i];$('nv').textContent=d.n;
+  plot('t','t','mt','time (s)',0.05,3000,'s',i);plot('m','mem','mm','peak memory (GiB)',0.1,60,'GiB',i);
+  const f=x=>x==null?'—':x;
+  let ip=d.mt!=null?('<span class="ip">MOSEK</span>: '+d.mt+' s, '+d.mm+' GiB'):(d.killed?'<span class="ip">MOSEK</span>: killed by the OS (Schur complement ≳ 39 GiB on a 36 GiB machine)':'<span class="ip">MOSEK</span>: not attempted');
+  $('readout').innerHTML='moment block s = '+d.s+', multipliers = '+d.mult.toLocaleString()+'<br><span class="ours">first-order</span>: '+d.t+' s, '+d.mem+' GiB, certified U = '+d.U.toFixed(4)+' &rArr; ⌊U⌋ = '+Math.floor(d.U+1e-9)+' = best cut '+d.cut+' (certified optimal)<br>'+ip;
+}
+N.oninput=draw;draw();
+</script></body></html>
