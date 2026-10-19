@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A triangle is four linear inequalities</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #top{display:flex;flex-wrap:wrap;gap:18px;padding:14px 16px 4px}
+  #mat{flex:0 0 auto}
+  #bars{flex:1;min-width:260px}
+  canvas{display:block}
+  #panel{padding:6px 16px 12px;border-top:1px solid #eee;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px;margin:3px 0}
+  .row label{min-width:150px;color:#444}
+  input[type=range]{flex:1}
+  .val{font-family:monospace;color:#c0392b;min-width:44px;text-align:right}
+  button{font:inherit;font-size:12px;padding:4px 9px;border:1px solid #ccc;border-radius:6px;background:#f6f7f9;cursor:pointer;margin:6px 6px 0 0}
+  #readout{font-family:monospace;margin-top:8px;line-height:1.5}
+  .ok{color:#1e8e5a;font-weight:bold}.bad{color:#c0392b;font-weight:bold}
+</style></head><body>
+<div id="top"><canvas id="mat" width="230" height="230"></canvas><canvas id="bars" width="420" height="230"></canvas></div>
+<div id="panel">
+  <div class="row"><label>a = Y<sub>ij</sub></label><input id="a" type="range" min="-1" max="1" step="0.01" value="-0.5"><span class="val" id="av"></span></div>
+  <div class="row"><label>b = Y<sub>ik</sub></label><input id="b" type="range" min="-1" max="1" step="0.01" value="-0.5"><span class="val" id="bv"></span></div>
+  <div class="row"><label>c = Y<sub>jk</sub></label><input id="c" type="range" min="-1" max="1" step="0.01" value="-0.5"><span class="val" id="cv"></span></div>
+  <button data-p="-0.5,-0.5,-0.5">Goemans–Williamson optimum</button>
+  <button data-p="-0.33,-0.33,-0.33">on the cut polytope boundary</button>
+  <button data-p="1,1,1">all vertices on one side</button>
+  <button data-p="-1,-1,1">a valid cut</button>
+  <div id="readout"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const A=$('a'),B=$('b'),C=$('c');
+function eig(a,b,c){return [1+a+b+c,1+a-b-c,1-a+b-c,1-a-b+c];}
+function draw(){
+  const a=+A.value,b=+B.value,c=+C.value;
+  $('av').textContent=a.toFixed(2);$('bv').textContent=b.toFixed(2);$('cv').textContent=c.toFixed(2);
+  const e=eig(a,b,c), ok=e.every(v=>v>=-1e-9);
+  // matrix
+  let g=$('mat').getContext('2d');g.clearRect(0,0,230,230);
+  const M=[[1,a,b,c],[a,1,c,b],[b,c,1,a],[c,b,a,1]],lab=['1','xᵢxⱼ','xᵢxₖ','xⱼxₖ'];
+  g.font='11px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  for(let r=0;r<4;r++)for(let q=0;q<4;q++){
+    const v=M[r][q],t=(v+1)/2; g.fillStyle='rgb('+Math.round(240-110*t)+','+Math.round(240-60*t)+','+Math.round(250-10*(1-t)*0)+')';
+    g.fillStyle=v>=0?'rgba(47,111,224,'+(0.12+0.5*v)+')':'rgba(214,69,69,'+(0.12+0.5*-v)+')';
+    g.fillRect(40+q*46,24+r*46,44,44);g.fillStyle='#222';g.fillText(v.toFixed(2),62+q*46,46+r*46);}
+  lab.forEach((s,i)=>{g.fillStyle='#666';g.fillText(s,62+i*46,14);g.fillText(s,20,46+i*46);});
+  // eigen bars
+  g=$('bars').getContext('2d');g.clearRect(0,0,420,230);
+  const names=['1+a+b+c','1+a−b−c','1−a+b−c','1−a−b+c'];
+  g.font='12px sans-serif';g.textBaseline='middle';
+  g.fillStyle='#666';g.textAlign='left';g.fillText('eigenvalues of the 4×4 block (must all be ≥ 0)',10,12);
+  const x0=250,sc=40;
+  g.strokeStyle='#999';g.beginPath();g.moveTo(x0,28);g.lineTo(x0,222);g.stroke();
+  e.forEach((v,i)=>{const y=44+i*46;g.fillStyle='#444';g.textAlign='left';g.fillText(names[i],10,y+12);
+    g.fillStyle=v>=-1e-9?'#1e8e5a':'#c0392b';const w=v*sc;g.fillRect(Math.min(x0,x0+w),y,Math.abs(w),24);
+    g.fillStyle='#222';g.textAlign=v>=0?'left':'right';g.fillText(v.toFixed(2),x0+w+(v>=0?6:-6),y+12);});
+  const obj=a+b+c;
+  $('readout').innerHTML=(ok?'<span class="ok">PSD — all four triangle inequalities hold</span>':'<span class="bad">not PSD — violates '+e.map((v,i)=>v<-1e-9?'#'+(i+1):'').filter(Boolean).join(', ')+' of the four triangle inequalities</span>')+
+   '<br>unit-weight triangle objective ⟨W,Y⟩ = a+b+c = <b>'+obj.toFixed(2)+'</b> &nbsp;(GW bound −1.5; with the triangle cuts: −1 = exact)';
+}
+[A,B,C].forEach(x=>x.oninput=draw);
+document.querySelectorAll('button').forEach(bt=>bt.onclick=()=>{const p=bt.dataset.p.split(',');A.value=p[0];B.value=p[1];C.value=p[2];draw();});
+draw();
+</script></body></html>

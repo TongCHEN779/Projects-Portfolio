@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What a basis graph buys</title>
+<style>
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:#222;overflow:hidden}
+  #wrap{display:flex;flex-wrap:wrap}
+  canvas{display:block;width:380px;height:380px;max-width:100%;cursor:pointer}
+  #side{flex:1;min-width:250px;padding:12px 16px;font-size:13px}
+  button{font:inherit;font-size:12px;padding:4px 9px;border:1px solid #ccc;border-radius:6px;background:#f6f7f9;cursor:pointer;margin:0 6px 6px 0}
+  .cls{font-size:16px;font-weight:700;margin:8px 0 4px}
+  .forest{color:#7a7a7a}.cactus{color:#1e8e5a}.gen{color:#c0392b}
+  #hint{color:#666;font-size:12px;margin-bottom:8px}
+</style></head><body>
+<div id="wrap">
+  <canvas id="c" width="380" height="380"></canvas>
+  <div id="side">
+    <div id="hint">Click two vertices to add or remove a <b>pair monomial</b> x<sub>a</sub>x<sub>b</sub> (an edge of the pair graph H<sub>P</sub>).</div>
+    <div>
+      <button data-p="01 12 23 34">path (forest)</button>
+      <button data-p="01 12 02 23 34 24">two triangles, one vertex</button>
+      <button data-p="01 12 23 34 04">5-cycle</button>
+      <button data-p="01 12 23 34 04 02">5-cycle + chord</button>
+      <button data-p="01 12 23 03">4-cycle</button>
+      <button data-p="">clear</button>
+    </div>
+    <div class="cls" id="cls"></div>
+    <div id="msg"></div>
+    <div id="stats" style="margin-top:8px;color:#555"></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),N=6;
+const pos=[...Array(N)].map((_,i)=>{const a=-Math.PI/2+2*Math.PI*i/N;return [190+130*Math.cos(a),190+130*Math.sin(a)];});
+let E=new Set(), sel=-1;
+const key=(a,b)=>a<b?a+''+b:b+''+a;
+function setE(s){E=new Set(s.split(' ').filter(Boolean));draw();}
+// biconnected components (edge sets)
+function blocks(){
+  const adj=[...Array(N)].map(()=>[]);E.forEach(k=>{const a=+k[0],b=+k[1];adj[a].push(b);adj[b].push(a);});
+  const disc=Array(N).fill(-1),low=Array(N).fill(0),st=[],out=[];let t=0;
+  function dfs(u,p){disc[u]=low[u]=t++;
+    for(const v of adj[u]){ if(v===p)continue;
+      if(disc[v]<0){st.push([u,v]);dfs(v,u);low[u]=Math.min(low[u],low[v]);
+        if(low[v]>=disc[u]){const comp=[];let e;do{e=st.pop();comp.push(e);}while(e[0]!==u||e[1]!==v);out.push(comp);}}
+      else if(disc[v]<disc[u]){st.push([u,v]);low[u]=Math.min(low[u],disc[v]);}}}
+  for(let i=0;i<N;i++)if(disc[i]<0)dfs(i,-1);
+  return out;
+}
+function triangles(){let c=0;for(let i=0;i<N;i++)for(let j=i+1;j<N;j++)for(let k=j+1;k<N;k++)if(E.has(key(i,j))&&E.has(key(i,k))&&E.has(key(j,k)))c++;return c;}
+function classify(){
+  const bl=blocks(); if(!E.size)return {c:'forest',t:'empty basis → forest'};
+  const sizes=bl.map(b=>b.length);
+  if(sizes.every(s=>s===1))return {c:'forest',t:'Forest'};
+  if(sizes.every(s=>s===1||s===3))return {c:'cactus',t:'Triangle cactus'};
+  return {c:'gen',t:'General pair graph'};
+}
+function draw(){
+  g.clearRect(0,0,380,380);
+  const tri=new Set();
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++)for(let k=j+1;k<N;k++)if(E.has(key(i,j))&&E.has(key(i,k))&&E.has(key(j,k))){
+    g.fillStyle='rgba(47,111,224,0.13)';g.beginPath();g.moveTo(...pos[i]);g.lineTo(...pos[j]);g.lineTo(...pos[k]);g.fill();}
+  g.strokeStyle='#2f6fe0';g.lineWidth=2.4;
+  E.forEach(k=>{const a=pos[+k[0]],b=pos[+k[1]];g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();});
+  pos.forEach((p,i)=>{g.beginPath();g.arc(p[0],p[1],14,0,7);g.fillStyle=i===sel?'#ffd479':'#fff';g.fill();g.strokeStyle='#333';g.lineWidth=1.5;g.stroke();
+    g.fillStyle='#222';g.font='13px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('x'+(i+1),p[0],p[1]);});
+  const c=classify(),T=triangles();
+  const el=document.getElementById('cls');el.textContent=c.t;el.className='cls '+c.c;
+  document.getElementById('msg').innerHTML=
+   c.c==='forest'?'ρ(P) = ρ(∅): the walk gains <b>nothing</b> over Goemans–Williamson, however many monomials you add (Thm. 1a).':
+   c.c==='cactus'?'ρ(P) equals the cut relaxation with exactly the <b>'+T+' triangle'+(T===1?'':'s')+'</b> of H<sub>P</sub> — four linear inequalities each (Thm. 1b).':
+   'ρ(P) ≥ the triangle-cut relaxation, and the inequality can be <b>strict</b>: cycles of length ≥ 4 contribute extra strength (Thm. 1c).';
+  document.getElementById('stats').textContent=E.size+' pair monomials · '+T+' triangles';
+}
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*380/r.width,y=(e.clientY-r.top)*380/r.height;
+  let hit=-1;pos.forEach((p,i)=>{if(Math.hypot(p[0]-x,p[1]-y)<20)hit=i;});
+  if(hit<0){sel=-1;draw();return;}
+  if(sel<0)sel=hit;else{if(sel!==hit){const k=key(sel,hit);E.has(k)?E.delete(k):E.add(k);}sel=-1;}
+  draw();
+});
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>{sel=-1;setE(b.dataset.p);});
+setE('01 12 02 23 34 24');
+</script></body></html>

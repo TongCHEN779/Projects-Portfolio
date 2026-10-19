@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Walking Between Moment-SOS Orders</title>
+<meta name="description" content="For MAX-CUT, growing the moment basis one monomial at a time is a cutting-plane method in disguise. We characterise the walk exactly (forests, triangle cacti, odd cycles) and learn which cuts to add.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --accent:#2f6fe0;
+    --bg:#ffffff; --soft:#f6f7f9;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased;font-size:17px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .backbar{max-width:1100px;margin:0 auto;padding:18px 24px;font-size:14px}
+  header.hero{border-bottom:1px solid var(--line);background:var(--soft)}
+  .hero .inner{max-width:760px;margin:0 auto;padding:46px 24px 34px}
+  .kicker{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:34px;line-height:1.2;margin:12px 0 14px;letter-spacing:-0.4px}
+  .dek{font-size:18px;color:var(--muted);margin:0}
+  .byline{margin-top:20px;font-size:14px;color:var(--muted);display:flex;gap:26px;flex-wrap:wrap}
+  .byline b{color:var(--ink);font-weight:600}
+  .layout{max-width:1100px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:1000px){.layout{grid-template-columns:220px minmax(0,760px);gap:40px;justify-content:center}}
+  nav.toc{font-size:14px}
+  @media(min-width:1000px){nav.toc{position:sticky;top:24px;align-self:start;padding-top:44px}}
+  nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border:none;margin:0 0 10px;padding:0}
+  nav.toc ul{list-style:none;margin:0;padding:0}
+  nav.toc li{margin:6px 0}
+  nav.toc a{color:var(--muted)}
+  nav.toc a:hover{color:var(--accent)}
+  article{padding:44px 0 20px;min-width:0}
+  article h2{font-size:24px;margin:44px 0 14px;padding-top:14px;border-top:1px solid var(--line);letter-spacing:-0.3px}
+  article h2:first-child{border-top:none;padding-top:0;margin-top:0}
+  article h3{font-size:18px;margin:30px 0 10px}
+  article h3{font-size:18px;margin:30px 0 10px}
+  p{margin:0 0 18px}
+  sup.cite{font-size:12px;color:var(--accent);font-weight:600;padding-left:1px}
+  sup.cite a{color:var(--accent)}
+  blockquote{margin:22px 0;padding:14px 20px;background:var(--soft);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0}
+  blockquote p{margin:6px 0}
+  figure{margin:26px 0}
+  figcaption{font-size:14px;color:var(--muted);text-align:center;margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+  th{background:var(--soft)}
+  td:first-child,th:first-child{text-align:left}
+  code{background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:14px}
+  .refs{max-width:760px;margin:0 auto;padding:10px 24px 70px}
+  .refs h2{font-size:20px;border-top:1px solid var(--line);padding-top:22px}
+  .refs ol{list-style:none;margin:0;padding:0;font-size:14px;color:var(--muted)}
+  .refs li{margin:9px 0;line-height:1.5}
+  .refs .rnum{color:var(--accent);font-weight:600;margin-right:6px}
+  .refs em{color:var(--ink);font-style:italic}
+  /* wide figures break out of the text column on large screens */
+  @media(min-width:1000px){figure:has(iframe){width:calc(100% + 120px);margin-left:-60px}}
+</style>
+</head>
+<body>
+  <div class="backbar"><a href="../../index.html">&larr; Back to portfolio</a></div>
+  <header class="hero">
+    <div class="inner">
+      <div class="kicker">Interactive Article &middot; AI for Optimization</div>
+      <h1>Walking Between Moment-SOS Orders</h1>
+      <p class="dek">Exact structure and learned basis growth for MAX-CUT. Growing the moment basis one monomial at a time turns out to be a cutting-plane method in disguise: forests gain nothing, triangles are four linear inequalities, and an odd cycle is certified with $2m-3$ monomials instead of $\binom m2$. We use that structure to learn which cuts to add.</p>
+      <div class="byline">
+        <span><b>Tong Chen, Shaojie Bai, Raghavendra Selvan</b><br>University of Copenhagen</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#related-work">Related Work</a></li>
+<li><a href="#the-walk">The Walk: Partial-Basis Relaxations</a></li>
+<li><a href="#structure">Structure for MAX-CUT</a></li>
+<li><a href="#learning-the-walk">Learning the Walk</a></li>
+<li><a href="#experiments">Experiments</a></li>
+<li><a href="#discussion">Discussion</a></li>
+<li><a href="#conclusion">Outlook</a></li>
+<li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+    <article>
+
+<h2 id="introduction">Introduction</h2>
+<p>The moment–sum-of-squares (moment-SOS) hierarchy of Lasserre and Parrilo <sup class="cite">[<a href="#ref-Lasserre2001">1</a>]</sup><sup class="cite">[<a href="#ref-Parrilo2003">2</a>]</sup> turns polynomial optimisation into a sequence of semidefinite programs (SDPs) of increasing order $d$, whose values converge monotonically to the global minimum, often in finitely many steps <sup class="cite">[<a href="#ref-Nie2014">3</a>]</sup>. Its practical weakness is the <em>granularity</em> of that sequence. The order-$d$ moment matrix has size $\binom{n+d}{d}=O(n^d)$, so for most problems of interest even the step from order $1$ to order $2$ is out of reach — and nothing lies in between. Structure-exploiting variants, correlative <sup class="cite">[<a href="#ref-Waki2006">4</a>]</sup><sup class="cite">[<a href="#ref-Lasserre2006">5</a>]</sup> and term sparsity <sup class="cite">[<a href="#ref-Wang2021">6</a>]</sup>, fill the gap with hand-designed rules.</p>
+<p>This article studies the gap <em>as a path</em>. Which sub-bases $\mathcal B$ with $\mathcal B_1\subseteq\mathcal B\subseteq\mathcal B_2$ should one pay for? Every such $\mathcal B$ is a valid relaxation, so growing the basis one monomial at a time — a <em>walk</em> — is an anytime algorithm whose bound improves monotonically. The question is the <em>order</em> of growth.</p>
+<p>For MAX-CUT we can answer it exactly, and the answer turns the walk into something familiar: a <strong>cutting-plane method in basis space</strong>. We then use that structure to build a scalable engine and to train a small policy that picks cuts.</p>
+<p><strong>Contributions.</strong></p>
+<ol>
+<li><strong>Exact structure of the walk for MAX-CUT.</strong> The walk relaxation decouples by parity; a triangle of pair monomials <em>is</em> the four triangle inequalities; a basis whose pair graph is a forest gains nothing, and a triangle cactus gains exactly its triangle cuts; this explains why one-step greedy selection is blind and why triangles are the right macro-actions; and an odd cycle $C_m$ is certified exactly by a triangulation with $2m-3$ instead of $\binom m2$ monomials. This connects the hierarchy to the classical SDP + metric-polytope approach to MAX-CUT <sup class="cite">[<a href="#ref-Rendl2010">7</a>]</sup><sup class="cite">[<a href="#ref-Anjos2002">8</a>]</sup>.</li>
+<li><strong>A scalable learned walk.</strong> Batches of triangle cuts on top of the $n$-dimensional Goemans–Williamson cone, with an exact all-triples separation oracle, and a small policy trained by behaviour cloning and REINFORCE on tiny random graphs only.</li>
+<li><strong>Evaluation.</strong> Each theorem is checked numerically; the policy is compared with random, structural, maximum-violation and diversity-aware selectors on random graphs up to $n=150$ and deployed zero-shot on Gset instances with $800$–$1000$ vertices, including a triangle-free torus.</li>
+</ol>
+<p>We are explicit about what is and is not claimed: the theory is for Boolean quadratic problems; the learned policy's gain over the strongest hand-designed selector is modest; and at Gset scale the interior-point solve, not the selection rule, is the bottleneck.</p>
+
+<h2 id="related-work">Related Work</h2>
+<p><strong>Hierarchies and sparsity.</strong> Lasserre <sup class="cite">[<a href="#ref-Lasserre2001">1</a>]</sup> and Parrilo <sup class="cite">[<a href="#ref-Parrilo2003">2</a>]</sup> introduced the hierarchy; Laurent <sup class="cite">[<a href="#ref-Laurent2009">9</a>]</sup><sup class="cite">[<a href="#ref-Laurent2003">10</a>]</sup> surveys it and compares it with Sherali–Adams and Lovász–Schrijver for $0/1$ problems. Sparse variants exploit correlative <sup class="cite">[<a href="#ref-Waki2006">4</a>]</sup><sup class="cite">[<a href="#ref-Lasserre2006">5</a>]</sup> or term sparsity <sup class="cite">[<a href="#ref-Wang2021">6</a>]</sup> through chordal extensions <sup class="cite">[<a href="#ref-Vandenberghe2015">11</a>]</sup>. Our walk is an <em>instance-adaptive</em>, anytime counterpart, and the exact-structure theorem below makes the link to chordal structure precise through the line graph of the basis graph.</p>
+<p><strong>MAX-CUT relaxations.</strong> The Goemans–Williamson (GW) SDP <sup class="cite">[<a href="#ref-GW1995">12</a>]</sup>, its strengthening with triangle and odd-cycle inequalities <sup class="cite">[<a href="#ref-Barahona1986">13</a>]</sup><sup class="cite">[<a href="#ref-Deza1997">14</a>]</sup>, and the SDP+metric branch-and-bound solver BiqMac <sup class="cite">[<a href="#ref-Rendl2010">7</a>]</sup> are the classical strong bounds; Anjos and Wolkowicz <sup class="cite">[<a href="#ref-Anjos2002">8</a>]</sup> study a second lifting. We show these cuts are literally moment-matrix blocks.</p>
+<p><strong>Scalable SDP.</strong> Spectral bundle methods <sup class="cite">[<a href="#ref-Helmberg2000">15</a>]</sup> (which also introduced the Gset instances) and low-rank factorisations <sup class="cite">[<a href="#ref-Burer2003">16</a>]</sup> scale GW but do not directly give the certified bound a growing basis needs; we use an interior-point solver <sup class="cite">[<a href="#ref-mosek">17</a>]</sup> and report its scaling limit honestly.</p>
+<p><strong>Learning to cut.</strong> Learning cut selection for MILP <sup class="cite">[<a href="#ref-Tang2020">18</a>]</sup><sup class="cite">[<a href="#ref-Paulus2022">19</a>]</sup> and the theory of cut selection <sup class="cite">[<a href="#ref-Dey2018">20</a>]</sup> are closest in spirit; see <sup class="cite">[<a href="#ref-Bengio2021">21</a>]</sup> for a survey and <sup class="cite">[<a href="#ref-Khalil2017">22</a>]</sup> for RL over graphs. To our knowledge, learned selection of <em>moment-matrix</em> bases — equivalently of SDP cuts with an SOS certificate — has not been studied.</p>
+
+<h2 id="the-walk">The Walk: Partial-Basis Relaxations</h2>
+<p>Consider $\rho=\min_{\mathbf x\in\mathbf K}f(\mathbf x)$ with $\mathbf K=\{g_i\ge0\}$. Let $\rho_d$ be the order-$d$ moment bound and $\mathcal V_d$ the monomials of degree $\le d$. For a finite set of monomials $\mathcal B$ with $\mathcal V_d\subseteq\mathcal B\subseteq\mathcal V_{d+1}$, define $\rho(\mathcal B)$ as the minimum of $\mathcal L_{\mathbf y}(f)$ over pseudo-moments $\mathbf y$ with $y_0=1$, $M_{\mathcal B}(\mathbf y)\succeq0$ and $M_{\mathcal B_i}(g_i\mathbf y)\succeq0$, where $M_{\mathcal B}$ is the moment matrix restricted to rows and columns in $\mathcal B$.</p>
+<blockquote>
+<p><strong>Proposition (Sandwich).</strong> $\rho_d\le\rho(\mathcal B)\le\rho(\mathcal B')\le\rho_{d+1}\le\rho$ for $\mathcal V_d\subseteq\mathcal B\subseteq\mathcal B'\subseteq\mathcal V_{d+1}$.</p>
+</blockquote>
+<p><em>Why.</em> A principal submatrix of a PSD matrix is PSD, so the constraints for $\mathcal B$ are implied by those for $\mathcal B'$; every feasible point of the larger relaxation is feasible for the smaller.</p>
+<p>So $\rho(\mathcal B)$ is an anytime lower bound that any single added monomial can improve, and its SOS dual is a certificate that uses only squares of polynomials supported on $\mathcal B$. Choosing the order of growth is a sequential decision problem: <em>state</em> $=\mathcal B$, <em>action</em> $=$ a monomial (or group of monomials) in $\mathcal V_{d+1}\setminus\mathcal B$, deterministic transitions, and reward $r(\mathcal B,a)=\rho(\mathcal B\cup\{a\})-\rho(\mathcal B)-\lambda$ with a compute penalty $\lambda$; the return telescopes to the total bound improvement.</p>
+<p>Our first experiments used a policy over <em>single</em> monomials and found that the marginal reward is usually <em>exactly zero</em>. The next section explains why, and what the right action space is.</p>
+
+<h2 id="structure">Structure of the Walk for MAX-CUT</h2>
+<p>We specialise to the problem where the walk can be analysed exactly,
+$$\rho^\star=\min_{x\in\{\pm1\}^n}\ \sum_{i\lt j}W_{ij}\,x_ix_j ,$$
+with $W$ symmetric and zero on the diagonal. This is MAX-CUT: a cut has value $\tfrac12(\sum_{i\lt j}W_{ij}-\sum_{i\lt j}W_{ij}x_ix_j)$, so a lower bound $\rho$ on the minimum is an upper bound $\tfrac12(\sum_{i\lt j}W_{ij}-\rho)$ on the maximum cut.</p>
+<p>Modulo the Boolean ideal $\langle x_i^2-1\rangle$ every monomial is a square-free $x_S$, with $x_Sx_T=x_{S\triangle T}$. Write $Y_{ij}=\mathcal L_{\mathbf y}(x_ix_j)$. For a set $P$ of <em>pair monomials</em> take the basis $\mathcal B(P)=\{1\}\cup\{x_i\}\cup\{x_ax_b:ab\in P\}$ and write $\rho(P)$ for its walk relaxation. Then $\rho(\emptyset)$ is the GW bound <sup class="cite">[<a href="#ref-GW1995">12</a>]</sup> and $\rho(\binom{[n]}{2})=\rho_2$ is the order-2 Lasserre bound, so
+$$\rho(\emptyset)\le\rho(P)\le\rho_2\le\rho^\star\quad\text{for every }P.$$
+We call $H_P=([n],P)$ the <em>pair graph</em>.</p>
+
+<h3>Parity decoupling</h3>
+<blockquote>
+<p><strong>Proposition (Parity decoupling).</strong> $\rho(P)$ is the optimal value of $\min\langle W,Y\rangle$ subject to $Y\succeq0$, $\operatorname{diag}Y=\mathbf 1$, and
+$$N(Y,z)=\begin{bmatrix}1&\mathbf y_P^\top\\ \mathbf y_P&C(Y,z)\end{bmatrix}\succeq0,$$
+where $(\mathbf y_P)_{ab}=Y_{ab}$, $C_{ab,ab}=1$, $C_{ab,cd}=Y_{xy}$ if the pairs share one index and $\{x,y\}=\{a,b\}\triangle\{c,d\}$, and $C_{ab,cd}=z_{abcd}$ is a free variable for disjoint pairs.</p>
+</blockquote>
+<p><em>Why.</em> Conjugating a feasible moment matrix by $D=\operatorname{diag}((-1)^{|S|})$ flips the sign of the odd moments without changing the objective, which only involves $|S|=2$. Averaging the two gives a feasible point of equal value whose odd moments vanish, so its moment matrix is block diagonal in the parity of the row degree: the odd rows $\{x_i\}$ give $Y$, the even rows $\{1\}\cup\{x_ax_b\}$ give $N$.</p>
+<p>The walk therefore never needs the $(1+n+|P|)$-dimensional cone of the naïve formulation — only an $n$-dimensional cone and a $(1+|P|)$-dimensional one.</p>
+
+<h3>A triangle is four linear inequalities</h3>
+<blockquote>
+<p><strong>Lemma (Triangle block).</strong> Let $ij,ik,jk\in P$. The principal submatrix of $N$ on the rows $1,\ x_ix_j,\ x_ix_k,\ x_jx_k$ is
+$$\begin{bmatrix}1&a&b&c\\a&1&c&b\\b&c&1&a\\c&b&a&1\end{bmatrix},\qquad a=Y_{ij},\ b=Y_{ik},\ c=Y_{jk},$$
+with eigenvalues $1+a+b+c,\ 1+a-b-c,\ 1-a+b-c,\ 1-a-b+c$. It is PSD iff $(a,b,c)$ satisfies the four <em>triangle inequalities</em>, the facets of the metric polytope <sup class="cite">[<a href="#ref-Deza1997">14</a>]</sup>.</p>
+</blockquote>
+<p><em>Why.</em> The matrix is the group matrix of $\mathbb Z_2^2$; the Hadamard matrix diagonalises it. Dually, the inequality $1+\sigma_1a+\sigma_2b+\sigma_3c\ge0$ is certified by the square $\tfrac14(1+\sigma_1x_ix_j+\sigma_2x_ix_k+\sigma_3x_jx_k)^2$: a triangle is exactly the three monomials an SOS certificate needs to contain this square.</p>
+<p>Try it. Move $(a,b,c)=(Y_{ij},Y_{ik},Y_{jk})$ and watch the four eigenvalues. The GW optimum for a unit-weight triangle sits at $(-\tfrac12,-\tfrac12,-\tfrac12)$, which <em>violates</em> a triangle inequality; the cuts push it to the exact value $-1$.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/triangle.html" width="100%" height="520"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Triangle block eigenvalues"></iframe>
+  <figcaption>The $4\times4$ triangle block is PSD exactly when the four linear triangle inequalities hold.</figcaption>
+</figure>
+
+<h3>What a basis graph buys: forests, cacti and cycles</h3>
+<p>Let $\rho_{\rm cut}(\mathcal T)$ be the value of the <em>cut relaxation</em> $\{Y\succeq0,\operatorname{diag}Y=\mathbf1\}$ plus the four triangle inequalities of every triple in a set $\mathcal T$, and $\mathcal T(P)$ the triangles of $H_P$. By the Lemma, $\rho(P)\ge\rho_{\rm cut}(\mathcal T(P))$.</p>
+<blockquote>
+<p><strong>Theorem 1 (Exact structure).</strong></p>
+<p>(a) If $H_P$ is a forest then $\rho(P)=\rho(\emptyset)$.<br>
+(b) If every block (biconnected component) of $H_P$ is an edge or a triangle — a <em>triangle cactus</em> — then $\rho(P)=\rho_{\rm cut}(\mathcal T(P))$.<br>
+(c) In general $\rho(P)\ge\rho_{\rm cut}(\mathcal T(P))$, and the inequality can be strict.</p>
+</blockquote>
+<p><em>Proof idea.</em> By a Schur complement, $N\succeq0$ iff $\tilde P=C-\mathbf y_P\mathbf y_P^\top\succeq0$. Its specified entries live on the line graph of $H_P$; for a forest or a triangle cactus this line graph is chordal, with maximal cliques the vertex stars and the triangles. By the theorem of Grone et al. <sup class="cite">[<a href="#ref-Grone1984">23</a>]</sup>, a partial matrix with chordal pattern is PSD-completable iff every maximal-clique block is PSD. Star blocks are automatically PSD (a Schur complement of $Y$), and a triangle block is PSD iff the four triangle inequalities hold. For (c), $C_5$ plus one chord reaches the exact value $-3$, strictly better than the single triangle.</p>
+<p>Toggle pair monomials below and see which regime your basis is in.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/graph.html" width="100%" height="470"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Forest, cactus or general pair graph"></iframe>
+  <figcaption>Click two vertices to toggle a pair monomial. The page classifies the pair graph with a biconnected-components search and states what Theorem 1 says about it.</figcaption>
+</figure>
+
+<blockquote>
+<p><strong>Corollary (Plateaus and non-myopia).</strong> If $P$ is a forest, every single pair $e$ with $P\cup\{e\}$ a forest has zero marginal gain. For a triangle $\{e_1,e_2,e_3\}$ the gains of $\{e_1\}$ and $\{e_1,e_2\}$ are $0$, while adding $e_3$ gives a strictly positive gain exactly when no optimum of the current relaxation satisfies the triangle inequalities. The marginal-gain function is not submodular, and a one-step greedy rule on pair monomials is <em>blind</em> (every candidate ties at zero) at every state whose pair graph is a forest.</p>
+</blockquote>
+<p>This formalises the empirical failure of one-step greedy selection: the natural action is the <strong>triangle</strong>, a macro-action of three monomials, and when triangles are glued as a cactus the relaxation is exactly the corresponding cutting-plane relaxation.</p>
+<blockquote>
+<p><strong>Proposition (Progress certificate).</strong> $\rho_{\rm cut}(\mathcal T\cup\{\tau\})>\rho_{\rm cut}(\mathcal T)$ iff <em>every</em> optimal $Y$ of the current relaxation violates a triangle inequality of $\tau$. In particular, violation at the computed solution is necessary for progress, and sufficient when the optimum is unique.</p>
+</blockquote>
+<p>This tells us where to look: only triples <em>violated</em> by the current solution can help.</p>
+
+<blockquote>
+<p><strong>Theorem 2 (Odd cycles are certified by a triangulation).</strong> Let $C=(v_1,\dots,v_m)$ be an odd signed cycle and let $P$ contain its edges and the chords of a triangulation of the polygon $C$ ($m$ sides, $m-3$ chords, $m-2$ triangles). Then every feasible $Y$ satisfies $\sum_{e\in C}\varepsilon_eY_e\ge-(m-2)$. Consequently, for the odd cycle graph $C_m$ with unit weights, $\rho(P)=-(m-2)=\rho^\star$ with $2m-3$ monomials, whereas the GW bound is $-m\cos(\pi/m)$ and the order-2 relaxation uses $\binom m2$ pair monomials.</p>
+</blockquote>
+<p><em>Proof idea.</em> Induct on $m$ by cutting off an ear $(u,v,w)$: the triangle inequality for the right sign pattern lets us replace the two ear edges by the chord, giving a signed polygon with $m-1$ sides and the same parity. The base case $m=3$ is a triangle inequality; the cut that leaves a single edge uncut attains the bound.</p>
+<figure style="text-align:center;margin:20px 0;">
+  <iframe scrolling="no" src="figures/cycle.html" width="100%" height="420"
+    style="border:none;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);" title="Odd cycle triangulation"></iframe>
+  <figcaption>Vary the odd cycle length $m$: $2m-3$ monomials give the exact bound, against $\binom m2$ for the full order-2 relaxation and a loose Goemans–Williamson bound.</figcaption>
+</figure>
+
+<h2 id="learning-the-walk">Learning the Walk</h2>
+<p><strong>Macro-action MDP.</strong> Rewards are non-zero only when a whole triangle is present, so the action is a <em>triple</em> $\{i,j,k\}$, which adds the three monomials $x_ix_j,x_ix_k,x_jx_k$. When triangles are glued as a cactus the relaxation is exactly the cut relaxation $\rho_{\rm cut}$ — one $n$-dimensional cone plus four linear inequalities per triangle, instead of an extra cone of dimension $3|\mathcal T|$. In general $\rho_{\rm cut}(\mathcal T)\le\rho(P(\mathcal T))$ is a valid but weaker relaxation; at scale we always use $\rho_{\rm cut}$. A <em>round</em> adds a batch of $K$ triples and re-solves once; a walk is $R$ rounds. Inactive cuts (zero dual in all four inequalities) are discarded after every solve, for all methods.</p>
+<p><strong>Candidates by exact separation.</strong> There are $\binom n3$ triples, but the progress certificate says only violated ones can help. We compute the violation $v(\tau)=\max_{\sigma}\{-1-\sigma\cdot(Y^\star_{ij},Y^\star_{ik},Y^\star_{jk})\}$ of <em>all</em> triples with blocked tensor operations ($O(n^3)$, 9&nbsp;s for $n=800$ on one machine) and keep the $M$ most violated as the candidate pool. This also covers triples containing non-edges, so the method applies to triangle-free graphs.</p>
+<p><strong>Policy.</strong> A shared MLP $s_\theta(\tau)$ scores candidates from size-agnostic features: normalised violation and its rank in the pool; the number of edges of $G$ among the three pairs; the alignment of the violated cut with the objective; summed edge weight; mean $|Y^\star|$ on the three pairs; normalised degrees; the number of already-active cuts touching the pairs; and the round index. A batch is built sequentially by sampling from $\mathrm{softmax}(s_\theta)$ after each pick, with two <em>within-round</em> overlap features (how many picked triples share a pair, resp. a vertex, with $\tau$) updated after every pick, which lets the policy learn diversity. At test time the batch is built greedily.</p>
+<p><strong>Training.</strong> We first behaviour-clone, on each training graph, the better of two hand-designed selectors (<code>struct</code> and <code>nms</code>, below), then fine-tune with REINFORCE <sup class="cite">[<a href="#ref-Williams1992">24</a>]</sup>: four rollouts per graph, return $=(\rho_{\rm final}-\rho_{\rm ref})/(\rho_{\rm ref}-\rho_{\rm GW})$ with $\rho_{\rm ref}$ the better of the two selectors on that graph, and the mean over the four rollouts as baseline. Training uses only random graphs with $30\le n\le80$, edge probability log-uniform in $[0.04,0.5]$, unit or $\pm1$ weights, $K=n$ and $R=4$ rounds — behaviour cloning on $160$ graphs, then $45$ REINFORCE iterations of $14$ graphs, about $25$ minutes on 14 cores.</p>
+<p><strong>Baselines.</strong> <code>random</code>: $K$ uniformly random triples. <code>struct</code>: triples ranked by the number of edges of $G$ they contain (the structural triangle heuristic, extended to non-edges). <code>top-K</code>: the $K$ most violated triples, the standard cutting-plane rule. <code>nms</code>: most-violated triples subject to no two sharing a pair (“non-maximum suppression”), a common diversity heuristic. All methods use identical solves, cut dropping and budget $(K,R)$.</p>
+
+<h2 id="experiments">Experiments</h2>
+<p>All SDPs are solved with MOSEK 11 <sup class="cite">[<a href="#ref-mosek">17</a>]</sup> (Fusion API, native symmetric cones; the same relaxations through a modelling layer that adds $O(n^2)$ symmetry rows were more than $300\times$ slower at $n=200$). Reported bounds are dual objective values, certified up to the solver tolerance $10^{-7}$.</p>
+
+<h3>Validating the theory</h3>
+<ul>
+<li><strong>Parity decoupling.</strong> The decoupled engine and the naïve $(1+n+|P|)$-cone engine agree to $3\times10^{-7}$.</li>
+<li><strong>Forests and cacti.</strong> Over 25 random weighted instances ($n=10$) with random forests, $\max|\rho(P)-\rho(\emptyset)|=5\times10^{-6}$; for 25 random triangle cacti, $\max|\rho(P)-\rho_{\rm cut}(\mathcal T(P))|=3\times10^{-6}$, while the cuts themselves improve the GW bound by $0.14$ on average — the equality is not vacuous.</li>
+<li><strong>General pair graphs.</strong> For 40 random sets of triples ($n=9$), $\rho(P)\ge\rho_{\rm cut}(\mathcal T(P))$ always, and the inequality is strict in $52\%$ of cases: cycles of length $\ge4$ in $H_P$ contribute. The sharpest example: $C_5$ plus one chord reaches the exact value $-3$ with $6$ monomials, whereas the single triangle's cuts give only $-3.83$.</li>
+<li><strong>Odd cycles.</strong> For every odd $m\le21$ the fan triangulation ($2m-3$ monomials) attains exactly $-(m-2)$ (error $<10^{-8}$); the full order-2 relaxation needs $\binom m2$ monomials ($210$ vs. $39$ at $m=21$). Exhaustive search over chord sets shows the triangulation count is <em>not</em> minimal: $C_5$, $C_7$, $C_9$ reach the exact value with $1$, $2$, $3$ chords, i.e. $\lceil(m-3)/2\rceil$ chords, and never with one fewer. We leave a proof to future work.</li>
+<li><strong>Ceilings.</strong> On $12$ small random graphs ($n\in\{10,12,14\}$), the exact order-2 bound equals the brute-force optimum to $2\times10^{-6}$ and the full triangle-metric bound to $1.3\times10^{-4}$, while GW is $0.004$–$1.7$ below. In this regime the ceiling is reached with triangle cuts alone, and the walk's task is purely <em>how quickly</em> the cuts are found.</li>
+</ul>
+<div style="overflow-x:auto;font-size:13px;margin:16px 0;">
+<table>
+<thead><tr><th style="text-align:left"></th><th>$C_5$</th><th>$C_7$</th><th>$C_9$</th></tr></thead>
+<tbody>
+<tr><td>exact $\rho^\star$</td><td>$-3$</td><td>$-5$</td><td>$-7$</td></tr>
+<tr><td>GW $-m\cos(\pi/m)$</td><td>$-4.045$</td><td>$-6.307$</td><td>$-8.457$</td></tr>
+<tr><td>$H=C_m$ (no chord)</td><td>$-3.944$</td><td>$-6.271$</td><td>–</td></tr>
+<tr><td>best, $k=1$ chord</td><td><b>$-3.000$</b></td><td>$-5.944$</td><td>–</td></tr>
+<tr><td>best, $k=2$ chords</td><td>–</td><td><b>$-5.000$</b></td><td>$-7.944$</td></tr>
+<tr><td>best, $k=3$ chords</td><td>–</td><td>–</td><td><b>$-7.000$</b></td></tr>
+<tr><td>triangulation ($2m-3$)</td><td>$-3$</td><td>$-5$</td><td>$-7$</td></tr>
+</tbody></table></div>
+<p style="font-size:12px;color:#666;">Odd cycles: bound of the walk relaxation $\rho(P)$ for the best chord sets (exhaustive search).</p>
+
+<h3>Learned versus hand-designed cut selection on random graphs</h3>
+<p><strong>Protocol.</strong> Test graphs are Erdős–Rényi graphs with unit or random $\pm1$ weights, $12$ per setting. The policy is trained only on $30\le n\le80$ and evaluated with $K=n$ cuts per round for $R=6$ rounds (trained for $R=4$), so $n=100,150$ test generalisation in size and the extra rounds test depth. The reference value of each graph is the ceiling reached after $25$ rounds of the violation+diversity selector, and the metric is the percentage of the gap $\rho_{\rm GW}\to\rho_{\rm ceil}$ closed after $R$ rounds.</p>
+<div style="overflow-x:auto;font-size:12px;margin:16px 0;">
+<table>
+<thead><tr><th style="text-align:left">Setting</th><th>random</th><th>struct</th><th>top-$K$</th><th>nms</th><th>BC</th><th>BC+RL</th><th>BC+RL − best base</th></tr></thead>
+<tbody>
+<tr><td>$n=40,\ p=0.3$</td><td>32.0</td><td>84.2</td><td>87.3</td><td>90.1</td><td>90.8</td><td><b>94.8</b></td><td>+4.4 ± 0.6 (12/12)</td></tr>
+<tr><td>$n=60,\ p=0.15$</td><td>23.6</td><td>83.9</td><td>82.8</td><td>85.7</td><td>89.4</td><td><b>94.0</b></td><td>+7.6 ± 0.9 (12/12)</td></tr>
+<tr><td>$n=60,\ p=0.4,\ \pm1$</td><td>22.9</td><td>68.0</td><td>82.5</td><td>85.2</td><td>85.4</td><td><b>90.2</b></td><td>+5.0 ± 0.3 (12/12)</td></tr>
+<tr><td>$n=100,\ p=0.1$</td><td>14.6</td><td>81.7</td><td>75.7</td><td>77.6</td><td>81.7</td><td><b>87.6</b></td><td>+6.0 ± 0.5 (12/12)</td></tr>
+<tr><td>$n=100,\ p=0.3,\ \pm1$</td><td>15.4</td><td>70.7</td><td>82.0</td><td>83.0</td><td>83.1</td><td><b>87.4</b></td><td>+4.4 ± 0.2 (12/12)</td></tr>
+<tr><td>$n=150,\ p=0.08$</td><td>11.0</td><td>81.2</td><td>77.1</td><td>77.8</td><td>81.2</td><td><b>86.6</b></td><td>+5.4 ± 0.3 (12/12)</td></tr>
+</tbody></table></div>
+<p style="font-size:12px;color:#666;">Percentage of the GW→ceiling gap closed after $R=6$ rounds of $K=n$ triangle cuts (mean over $12$ graphs; bold: best). Last column: paired per-graph difference between the learned policy and the better of <code>struct</code> and <code>nms</code> (mean ± s.e.; wins). Settings with $n\ge100$ are zero-shot in size.</p>
+<figure style="text-align:center;margin:22px 0;"><img src="img/curves.png" alt="Gap closed versus round" style="max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;"><figcaption>Gap closed versus round (mean over $12$ graphs). The policy was trained for $4$ rounds; its lead persists, and does not shrink, in rounds $5$ and $6$.</figcaption></figure>
+<p>The learned policy is the best method in every setting, ahead of the best hand-designed selector on each graph by $4.4$ to $7.6$ points, and winning on all $72$ graphs. The baselines are informative on their own. Random selection closes only $11$–$32\%$, confirming that <em>which</em> triples matter. The structural rule is strongest on sparse unit-weight graphs ($81$–$84\%$) but weak when weights have mixed signs ($68$–$71\%$), where violation-based rules win; adding diversity to the violation rule (nms) is consistently better than top-$K$. The learned policy combines both sources of information and keeps its advantage at sizes it was never trained on.</p>
+<p>Two ablations isolate what is responsible. Behaviour cloning alone essentially reproduces the better of its two teachers (within $0.7$ points of the best baseline mean in five of six settings), so the extra $4$–$6$ points come from the REINFORCE stage. And a first version trained only against the violation selector ($n\le60$, $p\ge0.1$) gained just $1.5$–$3.0$ points over nms and was <em>below</em> the structural rule on sparse graphs ($79.9$ vs. $81.7$ at $n=100$) — which is why the training distribution and the reference were changed.</p>
+
+<h3>Zero-shot deployment on Gset</h3>
+<p>We deploy the policy trained on $n\le80$ graphs, <em>unchanged</em>, on four Gset instances: G1 (dense, unit weights, $19{,}176$ edges), G14 (union of planar-like graphs, $4{,}694$ edges), G43 ($n=1000$, $9{,}990$ edges) and G11 (a $\pm1$ toroidal grid with <em>no triangles</em>). Each round adds $K=500$ cuts from a pool of $M=12{,}000$ most-violated triples; exact separation over all $\approx8.5\times10^7$ triples takes $9$&nbsp;s at $n=800$, and a full round takes $7$–$77$&nbsp;s depending on the number of active cuts (single machine, 14 cores). Because G11 has no triangles, an edge-restricted walk could not run on it at all; the all-triples oracle treats it like any other instance.</p>
+<p>We report the MAX-CUT upper bound $\mathrm{UB}=\tfrac12(\sum_{i\lt j}W_{ij}-\rho)$ and, for context, the cut found by GW rounding plus one-flip local search (our own heuristic, <em>not</em> the best-known value, so the gap is an overestimate of the true gap).</p>
+<div style="overflow-x:auto;font-size:12px;margin:16px 0;">
+<table>
+<thead><tr><th style="text-align:left"></th><th>$n$</th><th>$R$</th><th>GW UB</th><th>cut</th><th>struct</th><th>top-$K$</th><th>nms</th><th>learned</th><th>gap closed</th></tr></thead>
+<tbody>
+<tr><td>G1</td><td>800</td><td>8</td><td>12083.2</td><td>11570</td><td>12020.2</td><td>12009.5</td><td><b>12009.2</b></td><td>12010.1</td><td>14.2%</td></tr>
+<tr><td>G14</td><td>800</td><td>8</td><td>3191.6</td><td>3032</td><td>3145.8</td><td>3151.6</td><td>3151.6</td><td><b>3143.5</b></td><td>30.1%</td></tr>
+<tr><td>G43</td><td>1000</td><td>8</td><td>7032.2</td><td>6600</td><td>6974.5</td><td>6970.1</td><td>6970.0</td><td><b>6967.9</b></td><td>14.9%</td></tr>
+<tr><td>G11</td><td>800</td><td>8</td><td>629.2</td><td>542</td><td>571.5</td><td>593.4</td><td>585.8</td><td><b>570.6</b></td><td>67.2%</td></tr>
+</tbody></table></div>
+<p style="font-size:12px;color:#666;">Gset, $K=500$ cuts per round, $R=8$ rounds (at most $4{,}000$ active cuts). UB: MAX-CUT upper bound after $R$ rounds (lower is tighter; bold: best). “cut”: GW rounding + local search. Last column: fraction of the gap GW UB − cut closed by the learned policy.</p>
+<p><strong>Reading the table.</strong></p>
+<ol>
+<li>With identical budgets the learned policy gives the tightest bound on G14, G43 and the triangle-free torus G11, and is within one unit of the best (nms) on G1 ($12010.1$ vs. $12009.2$). At $R=3$ it was best on G1, G14 and G43 and behind the structural rule on G11, so the ranking on G11 changes with depth.</li>
+<li>The policy was trained only on $n\le80$ random graphs; G11, a $\pm1$ torus with no triangles, is far from that distribution.</li>
+<li>The methods differ most where structure matters: on G14 and G11 the structural rule is far ahead of the violation-based selectors ($28.7\%$ vs. $25.0\%$ and $66.2\%$ vs. $41.0$–$49.7\%$ of the gap), while on the dense G1 the order reverses. The learned policy tracks the better of the two in every case.</li>
+<li>Random selection is useless at scale: on G14 it closes $0.1\%$ of the gap after three rounds.</li>
+<li>In absolute terms the gaps remain large — $14$–$67\%$ closed with at most $4{,}000$ cuts — and reaching the metric-polytope bound needs far more cuts than an interior-point master problem can hold ($>9$&nbsp;GB and $350$&nbsp;s per solve at $5{,}000$ cuts on G14). Making the walk competitive at that scale needs a different master solver, not a different selection rule.</li>
+</ol>
+
+<h2 id="discussion">Discussion</h2>
+<p><strong>What the walk is.</strong> For MAX-CUT the walk between orders $1$ and $2$ of the hierarchy is, to a precise extent, a cutting-plane method: pair monomials appear in groups of three that are four linear inequalities each; forests carry no information; triangle cacti are exactly equal to their cuts; and cycles of length $\ge4$ in the basis graph give extra strength that cuts alone do not capture. This reframes “learning which monomials to add” as “learning which cuts to add”, links the SOS hierarchy to the SDP+metric methods of Rendl et al. <sup class="cite">[<a href="#ref-Rendl2010">7</a>]</sup>, and tells us what a one-step greedy rule cannot see.</p>
+<p><strong>What is learned.</strong> A small MLP over size-agnostic features, trained for about $20$ minutes on graphs with at most $80$ vertices, selects cuts better than random, structural, violation and diversity-aware selectors on random graphs up to $150$ vertices and on three of four Gset instances (a near-tie on the fourth). The gain over the best hand-designed baseline is $4$–$8$ points of gap closed after six rounds on random graphs, and a small but consistent edge at Gset scale ($-0.2$ to $+1.4$ points after $8$ rounds, the negative value being the near-tie on G1).</p>
+<p><strong>Limitations.</strong></p>
+<ul>
+<li>The theory is for Boolean quadratic problems. For general polynomial problems the parity and triangle structure is replaced by localizing and moment-matrix structure, and the right macro-action is not known.</li>
+<li>Theorem 1(b) is exact only for triangle cacti; the scalable engine solves the cut relaxation, which is weaker than the exact walk when triangles share edges. We quantified this on small instances but did not scale the exact walk.</li>
+<li>The conjectured minimal chord count $\lceil(m-3)/2\rceil$ for odd cycles is unproved.</li>
+<li>At Gset scale the bottleneck is the interior-point master problem, so absolute bound improvements are small and we do not claim state-of-the-art bounds. First-order or bundle solvers with cut management <sup class="cite">[<a href="#ref-Helmberg2000">15</a>]</sup> are the natural next step, and the learned selector is solver-agnostic.</li>
+<li>Training cost (about $20$ minutes on $14$ cores) and the choice of reference selectors for the REINFORCE baseline affect the outcome: a first version trained against violation-only selectors fell below the structural rule on sparse graphs.</li>
+<li>Only one problem class and a single batch size per round were studied.</li>
+</ul>
+<h2 id="conclusion">Outlook</h2>
+<p>Combining the learned selector with a scalable cut-aware solver, extending the characterisation to the next layer of the hierarchy (pentagonal and hypermetric inequalities correspond to larger basis cliques), and proving the cycle conjecture are the most promising continuations.</p>
+
+    </article>
+  </div>
+
+  <section class="refs" id="references">
+    <h2>References</h2>
+    <ol>
+<li id="ref-Lasserre2001"><span class="rnum">[1]</span> Jean B. Lasserre. <em>Global optimization with polynomials and the problem of moments</em>. SIAM Journal on Optimization 11(3), 2001.</li>
+<li id="ref-Parrilo2003"><span class="rnum">[2]</span> Pablo A. Parrilo. <em>Semidefinite programming relaxations for semialgebraic problems</em>. Mathematical Programming 96(2), 2003.</li>
+<li id="ref-Nie2014"><span class="rnum">[3]</span> Jiawang Nie. <em>Optimality conditions and finite convergence of Lasserre's hierarchy</em>. Mathematical Programming 146, 2014.</li>
+<li id="ref-Waki2006"><span class="rnum">[4]</span> Hayato Waki, Sunyoung Kim, Masakazu Kojima, Masakazu Muramatsu. <em>Sums of squares and semidefinite program relaxations for polynomial optimization problems with structured sparsity</em>. SIAM Journal on Optimization 17(1), 2006.</li>
+<li id="ref-Lasserre2006"><span class="rnum">[5]</span> Jean B. Lasserre. <em>Convergent SDP-relaxations in polynomial optimization with sparsity</em>. SIAM Journal on Optimization 17(3), 2006.</li>
+<li id="ref-Wang2021"><span class="rnum">[6]</span> Jie Wang, Victor Magron, Jean B. Lasserre. <em>TSSOS: A moment-SOS hierarchy that exploits term sparsity</em>. SIAM Journal on Optimization 31(1), 2021.</li>
+<li id="ref-Rendl2010"><span class="rnum">[7]</span> Franz Rendl, Giovanni Rinaldi, Angelika Wiegele. <em>Solving Max-Cut to optimality by intersecting semidefinite and polyhedral relaxations</em>. Mathematical Programming 121(2), 2010.</li>
+<li id="ref-Anjos2002"><span class="rnum">[8]</span> Miguel F. Anjos, Henry Wolkowicz. <em>Strengthened semidefinite relaxations via a second lifting for the Max-Cut problem</em>. Discrete Applied Mathematics 119, 2002.</li>
+<li id="ref-Laurent2009"><span class="rnum">[9]</span> Monique Laurent. <em>Sums of squares, moment matrices and optimization over polynomials</em>. In Emerging Applications of Algebraic Geometry, Springer, 2009.</li>
+<li id="ref-Laurent2003"><span class="rnum">[10]</span> Monique Laurent. <em>A comparison of the Sherali–Adams, Lovász–Schrijver, and Lasserre relaxations for 0–1 programming</em>. Mathematics of Operations Research 28(3), 2003.</li>
+<li id="ref-Vandenberghe2015"><span class="rnum">[11]</span> Lieven Vandenberghe, Martin S. Andersen. <em>Chordal graphs and semidefinite optimization</em>. Foundations and Trends in Optimization 1(4), 2015.</li>
+<li id="ref-GW1995"><span class="rnum">[12]</span> Michel X. Goemans, David P. Williamson. <em>Improved approximation algorithms for maximum cut and satisfiability problems using semidefinite programming</em>. Journal of the ACM 42(6), 1995.</li>
+<li id="ref-Barahona1986"><span class="rnum">[13]</span> Francisco Barahona, Ali Ridha Mahjoub. <em>On the cut polytope</em>. Mathematical Programming 36, 1986.</li>
+<li id="ref-Deza1997"><span class="rnum">[14]</span> Michel Marie Deza, Monique Laurent. <em>Geometry of Cuts and Metrics</em>. Springer, 1997.</li>
+<li id="ref-Helmberg2000"><span class="rnum">[15]</span> Christoph Helmberg, Franz Rendl. <em>A spectral bundle method for semidefinite programming</em>. SIAM Journal on Optimization 10(3), 2000.</li>
+<li id="ref-Burer2003"><span class="rnum">[16]</span> Samuel Burer, Renato D. C. Monteiro. <em>A nonlinear programming algorithm for solving semidefinite programs via low-rank factorization</em>. Mathematical Programming 95(2), 2003.</li>
+<li id="ref-mosek"><span class="rnum">[17]</span> MOSEK ApS. <em>The MOSEK optimization suite, version 11</em>, 2025.</li>
+<li id="ref-Tang2020"><span class="rnum">[18]</span> Yunhao Tang, Shipra Agrawal, Yuri Faenza. <em>Reinforcement learning for integer programming: Learning to cut</em>. ICML, 2020.</li>
+<li id="ref-Paulus2022"><span class="rnum">[19]</span> Max B. Paulus, Giulia Zarpellon, Andreas Krause, Laurent Charlin, Chris J. Maddison. <em>Learning to cut by looking ahead: Cutting plane selection via imitation learning</em>. ICML, 2022.</li>
+<li id="ref-Dey2018"><span class="rnum">[20]</span> Santanu S. Dey, Marco Molinaro. <em>Theoretical challenges towards cutting-plane selection</em>. Mathematical Programming 170, 2018.</li>
+<li id="ref-Bengio2021"><span class="rnum">[21]</span> Yoshua Bengio, Andrea Lodi, Antoine Prouvost. <em>Machine learning for combinatorial optimization: a methodological tour d'horizon</em>. European Journal of Operational Research 290(2), 2021.</li>
+<li id="ref-Khalil2017"><span class="rnum">[22]</span> Elias Khalil, Hanjun Dai, Yuyu Zhang, Bistra Dilkina, Le Song. <em>Learning combinatorial optimization algorithms over graphs</em>. NeurIPS, 2017.</li>
+<li id="ref-Grone1984"><span class="rnum">[23]</span> Robert Grone, Charles R. Johnson, Eduardo M. Sá, Henry Wolkowicz. <em>Positive definite completions of partial Hermitian matrices</em>. Linear Algebra and its Applications 58, 1984.</li>
+<li id="ref-Williams1992"><span class="rnum">[24]</span> Ronald J. Williams. <em>Simple statistical gradient-following algorithms for connectionist reinforcement learning</em>. Machine Learning 8, 1992.</li>
+    </ol>
+  </section>
+  <script>
+  // Auto-size each figure iframe to its content so nothing is clipped / needs inner scrolling.
+  (function(){
+    function sizeFrames(){
+      document.querySelectorAll('article figure iframe').forEach(function(f){
+        try{
+          var d=f.contentDocument||f.contentWindow.document;
+          var h=Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
+          if(h) f.style.height=h+'px';
+        }catch(e){}
+      });
+    }
+    window.addEventListener('load',sizeFrames);
+    window.addEventListener('resize',function(){clearTimeout(window.__rt);window.__rt=setTimeout(sizeFrames,150);});
+    setTimeout(sizeFrames,300); setTimeout(sizeFrames,900);
+  })();
+  </script>
+</body>
+</html>
